@@ -9,9 +9,10 @@
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
   class GHPRouter extends HTMLElement {
+    /** DOM Element that wraps the content, defaults to <main> tag. */
     contentElement = undefined
-    navlinks = new Set()
-    contentMap = new Map()
+    navlinks = new Set
+    contentMap = new Map
     routes = []
 
     connectedCallback() {
@@ -47,27 +48,38 @@
     }
 
     viewTransition(contentUrl) {
-      if (!document.startViewTransition) return this.updateContent(contentUrl)
-      document.startViewTransition(() => {
+      if ('startViewTransition' in document) {
+        document.startViewTransition(this.updateContent(contentUrl))
+      } else {
         this.updateContent(contentUrl)
-      })
+      }
     }
 
     async updateContent(url) {
-      if (!this.contentElement) return
-      try {
-        if (this.contentMap.has(url)) {
-          this.contentElement.innerHTML = this.contentMap.get(url)
-        } else {
+      const { contentElement, contentMap, navlinks } = this
+      // If content is cached, simulate an async behaviour.
+      const cachedContent = contentMap.get(url)
+      if (cachedContent) {
+        await new Promise(resolve => {
+          setTimeout(() => {
+            contentElement.innerHTML = cachedContent
+            resolve()
+          }, /* notice, no timeout here */)
+        })
+      } else {
+        // Content is not cached, try to fetch it.
+        try {
           const response = await fetch(url)
           const text = await response.text()
-          this.contentMap.set(url, text)
-          this.contentElement.innerHTML = text
+          contentMap.set(url, text)
+          contentElement.innerHTML = text
+        } catch (error) {
+          console.error(error)
+          return
         }
-        for (const navlink of this.navlinks.values()) navlink.setAriaCurrent()
-      } catch (error) {
-        console.error(error)
       }
+      // Finally, update navlinks.
+      for (const navlink of navlinks.values()) navlink.setAriaCurrent()
     }
   }
 
