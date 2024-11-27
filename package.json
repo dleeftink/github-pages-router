@@ -10,7 +10,7 @@
     "import": "./dist/github-pages-router.js"
   },
   "scripts": {
-    "build": "esbuild --minify-whitespace --outdir=. github-pages-router.ts"
+    "build": "esbuild --minify-whitespace --outdir=. src/github-pages-router.js"
   },
   "author": {
     "name": "Gianluca Casati",
