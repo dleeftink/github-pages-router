@@ -59,7 +59,7 @@
       // convenience setter to ensure main content is what has been loaded last
       // let last = sessionStorage.getItem('lastVisit')
       // this.contentElement.innerHTML = last; 
-      
+
       const transition = document.startViewTransition(async () => {
         await this.updateContent(contentUrl);
       })
@@ -72,7 +72,7 @@
 
       return new Promise(async (keep, drop) => {
         try {
-          if (sessionStorage.getItem(url)) {
+          if (this.contentMap.has(url) /*Or: sessionStorage.getItem(url)*/) {
             contentElement.innerHTML = this.contentMap.get(url); // Or: sessionStorage.getItem(url);
             keep()
           } else {
