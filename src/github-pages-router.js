@@ -72,13 +72,15 @@
 
       return new Promise(async (keep, drop) => {
         try {
-          if (this.contentMap.has(url) /*Or: sessionStorage.getItem(url)*/) {
-            contentElement.innerHTML = this.contentMap.get(url); // Or: sessionStorage.getItem(url);
+          if (/*this.contentMap.has(url) Or:*/ sessionStorage.getItem(url)) {
+            contentElement.innerHTML = // this.contentMap.get(url); // Or: 
+              sessionStorage.getItem(url);
             keep()
           } else {
             const response = await fetch(url);
             const text = await response.text();
-            this.contentMap.set(url, text); // Or: sessionStorage.setItem(url, text);
+            // this.contentMap.set(url, text); // Or: 
+              sessionStorage.setItem(url, text);
             contentElement.innerHTML = text;
             keep()
           }
