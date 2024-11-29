@@ -20,11 +20,13 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main")
       if (!this.contentElement) console.error("Cannot find contentElement")
 
-      // convenience listener to store last page content
-      let main = document.getElementsByTagName('main')[0];
-      window.addEventListener('pageswap', async (event) => {
-        sessionStorage.setItem('lastVisit', main.innerHTML);
-      });
+      // convenience listener to store last page content (not sure if needed)
+
+      // let main = document.getElementsByTagName('main')[0];
+      // window.addEventListener('pageswap', async (event) => {
+      //   sessionStorage.setItem('lastVisit', main.innerHTML);
+      // });
+
     }
 
     handleEvent(event) {
@@ -56,7 +58,7 @@
     async viewTransition(contentUrl) {
       if (!document.startViewTransition) return await this.updateContent(contentUrl);
 
-      // convenience setter to ensure main content is what has been loaded last
+      // convenience setter to ensure main content is what has been loaded last (not sure if needed)
       // let last = sessionStorage.getItem('lastVisit')
       // this.contentElement.innerHTML = last; 
 
@@ -72,19 +74,18 @@
 
       return new Promise(async (keep, drop) => {
         try {
-          if (/*this.contentMap.has(url) Or:*/ sessionStorage.getItem(url)) {
-            contentElement.innerHTML = // this.contentMap.get(url); // Or: 
+          if (sessionStorage.getItem(url) /*this.contentMap.has(url)*/) {
+            contentElement.innerHTML = // this.contentMap.get(url); 
               sessionStorage.getItem(url);
             keep()
           } else {
             const response = await fetch(url);
             const text = await response.text();
-            // this.contentMap.set(url, text); // Or: 
-              sessionStorage.setItem(url, text);
+            sessionStorage.setItem(url, text); // this.contentMap.set(url, text);
             contentElement.innerHTML = text;
             keep()
           }
-          for (const navlink of this.navlinks.values()) navlink.setAriaCurrent();
+          for (const navlink of this.navlinks.values()) navlink.setAriaCurrent(); // does this need to executed before promise is revolsed?
         } catch (error) {
           console.error(error);
           drop(error);
