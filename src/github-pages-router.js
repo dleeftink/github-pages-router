@@ -20,6 +20,7 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main")
       if (!this.contentElement) console.error("Cannot find contentElement")
 
+      // convenience listener to store last page content
       let main = document.getElementsByTagName('main')[0];
       window.addEventListener('pageswap', async (event) => {
         sessionStorage.setItem('lastVisit', main.innerHTML);
@@ -54,9 +55,11 @@
 
     async viewTransition(contentUrl) {
       if (!document.startViewTransition) return await this.updateContent(contentUrl);
-      let last = sessionStorage.getItem('lastVisit')
-      if(this.debug) console.log('Setting', last);
-      //this.contentElement.innerHTML = last; // make sure main content is what has been loaded last
+
+      // convenience setter to ensure main content is what has been loaded last
+      // let last = sessionStorage.getItem('lastVisit')
+      // this.contentElement.innerHTML = last; 
+      
       const transition = document.startViewTransition(async () => {
         await this.updateContent(contentUrl);
       })
@@ -70,12 +73,12 @@
       return new Promise(async (keep, drop) => {
         try {
           if (sessionStorage.getItem(url)) {
-            contentElement.innerHTML = this.contentMap.get(url); // sessionStorage.getItem(url);
+            contentElement.innerHTML = this.contentMap.get(url); // Or: sessionStorage.getItem(url);
             keep()
           } else {
             const response = await fetch(url);
             const text = await response.text();
-            this.contentMap.set(url, text); //sessionStorage.setItem(url, text);
+            this.contentMap.set(url, text); // Or: sessionStorage.setItem(url, text);
             contentElement.innerHTML = text;
             keep()
           }
