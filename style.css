@@ -1,6 +1,6 @@
 @layer reset, anim, layout, theme, typography, elements;
 
-@layer anim {
+/*@layer anim {
 
   main {
     view-transition-name: main-content;
@@ -55,7 +55,7 @@
     }
   }
 
-}
+}*/
 
 @layer theme {
   :root {
