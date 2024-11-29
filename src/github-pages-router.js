@@ -67,17 +67,20 @@
       })
       await transition.finished;
     }
-
+    
     async updateContent(url) {
       const { contentElement } = this;
       if (!contentElement) return;
-
+      
+      for (const navlink of this.navlinks.values()) navlink.setAriaCurrent(); // does this need to executed before promise is revolsed?
       return new Promise(async (keep, drop) => {
         try {
           if (sessionStorage.getItem(url) /*this.contentMap.has(url)*/) {
-            contentElement.innerHTML = // this.contentMap.get(url); 
+            setTimeout(()=> {
+              contentElement.innerHTML = // this.contentMap.get(url); 
               sessionStorage.getItem(url);
-            keep()
+              keep()
+            },5)
           } else {
             const response = await fetch(url);
             const text = await response.text();
@@ -85,7 +88,6 @@
             contentElement.innerHTML = text;
             keep()
           }
-          for (const navlink of this.navlinks.values()) navlink.setAriaCurrent(); // does this need to executed before promise is revolsed?
         } catch (error) {
           console.error(error);
           drop(error);
