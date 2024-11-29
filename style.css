@@ -1,4 +1,61 @@
-@layer reset, layout, theme, typography, elements;
+@layer reset, anim, layout, theme, typography, elements;
+
+@layer anim {
+
+  main {
+    view-transition-name: main-content;
+
+    h2 {
+      view-transition-name: page-heading;
+    }
+
+  }
+
+  ::view-transition-old(page-heading) {
+    animation: 0.75s 0.0s ease both exit;
+  }
+
+  ::view-transition-new(page-heading) {
+    animation: 0.5s 0.075s ease both init;
+  }
+
+  ::view-transition-old(main-content) {
+    animation: 0.75s 0.0s ease both exit;
+  }
+
+  ::view-transition-new(main-content) {
+    animation: 0.5s 0.0s ease both init;
+  }
+
+  @keyframes init {
+    from {
+      transform: translate(-8rem, 0rem);
+      filter:blur(12px);
+      opacity:0;
+    }
+
+    to {
+      transform: translate(0, 0);
+      filter:blur(0);
+      opacity:1;
+    }
+  }
+
+  @keyframes exit {
+    from {
+      transform: translate(0, 0);
+      filter:blur(0);
+      opacity:1;
+    }
+
+    to {
+      opacity:0;
+      filter:blur(32px);
+      transform: translate(8rem,0);
+    }
+  }
+
+}
 
 @layer theme {
   :root {
