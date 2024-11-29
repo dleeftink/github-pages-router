@@ -19,6 +19,11 @@
       addEventListener("popstate", this)
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main")
       if (!this.contentElement) console.error("Cannot find contentElement")
+
+      let main = document.getElementsByTagName('main')[0];
+      window.addEventListener('pageswap', async (event) => {
+        sessionStorage.setItem('lastVisit', main.innerHTML);
+      });
     }
 
     handleEvent(event) {
@@ -47,39 +52,39 @@
       this.viewTransition(contentUrl)
     }
 
-    viewTransition(contentUrl) {
-      if ('startViewTransition' in document) {
-        document.startViewTransition(this.updateContent(contentUrl))
-      } else {
-        this.updateContent(contentUrl)
-      }
+    async viewTransition(contentUrl) {
+      if (!document.startViewTransition) return await this.updateContent(contentUrl);
+      let last = sessionStorage.getItem('lastVisit')
+      if(this.debug) console.log('Setting', last);
+      this.contentElement.innerHTML = last;
+      const transition = document.startViewTransition(async () => {
+        await this.updateContent(contentUrl);
+      })
+      await transition.finished;
     }
 
     async updateContent(url) {
-      const { contentElement, contentMap, navlinks } = this
-      // If content is cached, simulate an async behaviour.
-      const cachedContent = contentMap.get(url)
-      if (cachedContent) {
-        await new Promise(resolve => {
-          setTimeout(() => {
-            contentElement.innerHTML = cachedContent
-            resolve()
-          }, /* notice, no timeout here */)
-        })
-      } else {
-        // Content is not cached, try to fetch it.
+      const { contentElement } = this;
+      if (!contentElement) return;
+
+      return new Promise(async (keep, drop) => {
         try {
-          const response = await fetch(url)
-          const text = await response.text()
-          contentMap.set(url, text)
-          contentElement.innerHTML = text
+          if (sessionStorage.getItem(url)) {
+            contentElement.innerHTML = this.contentMap.get(url); // sessionStorage.getItem(url);
+            keep()
+          } else {
+            const response = await fetch(url);
+            const text = await response.text();
+            this.contentMap.set(url, text); //sessionStorage.setItem(url, text);
+            contentElement.innerHTML = text;
+            keep()
+          }
+          for (const navlink of this.navlinks.values()) navlink.setAriaCurrent();
         } catch (error) {
-          console.error(error)
-          return
+          console.error(error);
+          drop(error);
         }
-      }
-      // Finally, update navlinks.
-      for (const navlink of navlinks.values()) navlink.setAriaCurrent()
+      })
     }
   }
 
