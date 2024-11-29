@@ -22,17 +22,17 @@
 
       // convenience listener to store last page content (not sure if needed)
 
-      /*let main = document.getElementsByTagName('main');
+      let main = document.getElementsByTagName('main');
        window.addEventListener('pageswap', async (event) => {
          sessionStorage.setItem('lastPage', main[0].innerHTML);
-      });*/
+      });
 
     }
 
-    handleEvent(event) {
+    async handleEvent(event) {
       if (event.type == "popstate") {
         const contentUrl = this.contentUrlFromLocation(location.toString())
-        if (contentUrl) this.viewTransition(contentUrl)
+        if (contentUrl) await this.viewTransition(contentUrl)
       }
     }
 
@@ -45,24 +45,24 @@
     /**
      * Handle anchor click event.
      */
-    navigate(event) {
+    async navigate(event) {
       event.preventDefault()
       const { href } = event.target
       if (href == document.location.toString()) return
       const contentUrl = this.contentUrlFromLocation(href)
       if (!contentUrl) return
       history.pushState({}, "", href)
-      this.viewTransition(contentUrl)
+      await this.viewTransition(contentUrl)
     }
 
     async viewTransition(contentUrl) {
       if (!document.startViewTransition) return await this.updateContent(contentUrl);
 
       // convenience setter to ensure main content is what has been loaded last (not sure if needed)
-      // let last = sessionStorage.getItem('lastPage')
+      let last = sessionStorage.getItem('lastPage')
       
       const transition = document.startViewTransition(async () => {
-        // this.contentElement.innerHTML = last; 
+        this.contentElement.innerHTML = last; 
         await this.updateContent(contentUrl);
       })
       await transition.finished;
@@ -74,15 +74,14 @@
 
       return new Promise(async (keep, drop) => {
         try {
-          if (/*sessionStorage.getItem(url)*/ this.contentMap.has(url)) {
-            contentElement.innerHTML = this.contentMap.get(url); 
-              // sessionStorage.getItem(url);
+          if (sessionStorage.getItem(url) /*this.contentMap.has(url)*/) {
+            contentElement.innerHTML = // this.contentMap.get(url); 
+              sessionStorage.getItem(url);
             keep()
           } else {
             const response = await fetch(url);
             const text = await response.text();
-            //sessionStorage.setItem(url, text); 
-            this.contentMap.set(url, text);
+            sessionStorage.setItem(url, text); // this.contentMap.set(url, text);
             contentElement.innerHTML = text;
             keep()
           }
@@ -160,9 +159,9 @@
       return this.querySelector("a")
     }
 
-    handleEvent(event) {
+    async handleEvent(event) {
       if (event.type == "click" && event.target == this.anchor) {
-        this.router?.navigate(event)
+        await this.router?.navigate(event)
       }
     }
   }
@@ -191,9 +190,9 @@
       return this.querySelector("a")
     }
 
-    handleEvent(event) {
+    async handleEvent(event) {
       if (event.type == "click" && event.target == this.anchor) {
-        this.router?.navigate(event)
+        await this.router?.navigate(event)
       }
     }
 
