@@ -253,6 +253,7 @@
     }
     a[aria-current="page"] {
       background-color: hsla(200, 60%, 60%, 0.2);
+      background: linear-gradient(90deg,hsla(200, 60%, 60%, 0.2) 0%,hsla(200, 60%, 60%, 0.2) 25%,hsla(200, 60%, 60%, 0) 80%);
       cursor: default;
     }
   }
