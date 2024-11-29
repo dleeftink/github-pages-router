@@ -56,7 +56,7 @@
       if (!document.startViewTransition) return await this.updateContent(contentUrl);
       let last = sessionStorage.getItem('lastVisit')
       if(this.debug) console.log('Setting', last);
-      this.contentElement.innerHTML = last;
+      //this.contentElement.innerHTML = last; // make sure main content is what has been loaded last
       const transition = document.startViewTransition(async () => {
         await this.updateContent(contentUrl);
       })
