@@ -1,16 +1,16 @@
 @layer reset, anim, layout, theme, typography, elements;
 
-@view-transition { 
+/*@view-transition { 
   navigation: auto; 
-}
+}*/
 
-/*@layer anim {
+@layer anim {
 
   main {
     view-transition-name: main-content;
 
     h2 {
-      view-transition-name: main-content;
+      view-transition-name: page-heading;
     }
 
   }
@@ -59,7 +59,7 @@
     }
   }
 
-}*/
+}
 
 @layer theme {
   :root {
