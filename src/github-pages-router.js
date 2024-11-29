@@ -5,6 +5,11 @@
     customElements.define(elementName, ElementClass)
   }
 
+  let main = document.getElementsByTagName('main');
+    window.addEventListener('pageswap', async (event) => {
+    sessionStorage.setItem('lastPage', main[0].innerHTML);
+  });
+
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -21,11 +26,6 @@
       if (!this.contentElement) console.error("Cannot find contentElement")
 
       // convenience listener to store last page content (not sure if needed)
-
-      let main = document.getElementsByTagName('main');
-       window.addEventListener('pageswap', async (event) => {
-         sessionStorage.setItem('lastPage', main[0].innerHTML);
-      });
 
     }
 
