@@ -22,9 +22,9 @@
 
       // convenience listener to store last page content (not sure if needed)
 
-      let main = document.getElementsByTagName('main')[0];
+      let main = document.getElementsByTagName('main');
        window.addEventListener('pageswap', async (event) => {
-         sessionStorage.setItem('lastPage', main.innerHTML);
+         sessionStorage.setItem('lastPage', main[0].innerHTML);
       });
 
     }
@@ -60,9 +60,9 @@
 
       // convenience setter to ensure main content is what has been loaded last (not sure if needed)
       let last = sessionStorage.getItem('lastPage')
-      this.contentElement.innerHTML = last; 
-
+      
       const transition = document.startViewTransition(async () => {
+        this.contentElement.innerHTML = last; 
         await this.updateContent(contentUrl);
       })
       await transition.finished;
