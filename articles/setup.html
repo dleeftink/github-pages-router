@@ -17,4 +17,40 @@
     You will notice there are two kinds of static websites you can create.
   </p>
 
+  <h3>First kind</h3>
+
+  <p>
+    The first kind happens when your repository has a name like
+    <code>YOUR-ACCOUNT-OR-ORGANIZATION.github.io</code>.
+  </p>
+
+  <p>
+    In this case the homepage will be
+    <code>https://YOUR-DOMAIN/</code>
+    <br>
+    where
+    <code>YOUR-DOMAIN</code>
+    will default to
+    <code>YOUR-ACCOUNT-OR-ORGANIZATION.github.io</code>.
+  </p>
+
+  <p>
+    You can also set your <strong>custom domain</strong>, check out the
+    <a href="https://pages.github.com/">official GitHub Pages documentation</a>.
+  </p>
+
+  <h3>Second kind</h3>
+
+  <p>
+    The second kind is a website that will have an homepage like
+    <code>https://YOUR-DOMAIN/YOUR-REPO-NAME/</code>.
+  </p>
+
+  <p>
+    In this case it is required that you add a <code>base</code> tag in your HTML <code>head</code>,
+    something like the following:
+  </p>
+
+  <pre><code>&lt;base href="/YOUR-REPO-NAME/" /&gt;</code></pre>
+
 </article>
