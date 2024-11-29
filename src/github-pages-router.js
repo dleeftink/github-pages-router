@@ -6,7 +6,7 @@
   }
 
   let main = document.getElementsByTagName('main');
-    window.addEventListener('pageswap', async (event) => {
+  window.addEventListener('pageswap', async (event) => {
     sessionStorage.setItem('lastPage', main[0].innerHTML);
   });
 
