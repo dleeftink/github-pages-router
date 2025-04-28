@@ -166,7 +166,7 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      this.router.readyState.then(async (keep)=> {
+      /*this.router.readyState.then(async (keep)=> {
 
         console.log(keep);
         console.log((await keep).active);
@@ -174,16 +174,16 @@
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
-        })
+        })*/
       
-      //await serviceWorkerReady;//.then(() => {
+      serviceWorkerReady.then(() => {
        // if (navigator.serviceWorker.controller) {
-         /* console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
+         console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
-          });*/
+          })
         //}
       });
 
