@@ -41,35 +41,48 @@
           // Register the service worker with the correct scope
           // const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
-          navigator.serviceWorker.register(swPath, { scope: basePath }).then(reg=> {
-            console.log("Inside main",reg);
-            navigator.serviceWorker.addEventListener("message", (event) => {
-              console.log("Received",event);
-              if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
-                console.log("Redirected to root URL by service worker");
-                let url = self.location.href;
-                // Update the SPA's internal state
-                window.location.href = url.substring(0, url.lastIndexOf('/')+1);; // Redirect to the root URL
-              }
-            });
-          })
-          // Listen for messages from the service worker
-          /*registration.addEventListener("message", (event) => {
-            if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
-              console.log("Redirected to root URL by service worker");
-              // Update the SPA's internal state
-              window.location.href = "/"; // Redirect to the root URL
-            }
-          });
+          navigator.serviceWorker
+            .register(swPath, { scope: basePath })
+            .then((registration) => {
+              console.log("Service Worker registered with scope:", registration.scope);
 
-          // Optionally, listen for messages globally as well
-          navigator.serviceWorker.addEventListener("message", (event) => {
-            if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
-              console.log("Redirected to root URL by service worker");
-              // Update the SPA's internal state
-              window.location.href = "/"; // Redirect to the root URL
-            }
-          });*/
+              // Check if there's an active service worker
+              if (registration.active) {
+                setupMessageListener();
+              } else {
+                // Wait for the service worker to become active
+                registration.onupdatefound = () => {
+                  const installingWorker = registration.installing;
+                  if (installingWorker) {
+                    installingWorker.onstatechange = () => {
+                      if (installingWorker.state === 'activated') {
+                        setupMessageListener();
+                      }
+                    };
+                  }
+                };
+              }
+
+              function setupMessageListener() {
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                  if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
+                    console.log("Received REDIRECTED_TO_ROOT message from service worker", event);
+                    handlRedirect();
+                  }
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("Service Worker registration failed:", error);
+            });
+
+          function handlRedirect() {
+            console.log("Redirected to root URL by service worker");
+            let url = self.location.href;
+            // Update the SPA's internal state
+            window.location.href = url.substring(0, url.lastIndexOf('/') + 1);; // Redirect to the root URL
+
+          }
 
           // Relay the basePath just in case
           // Only available after installation 
