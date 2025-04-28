@@ -93,6 +93,46 @@ self.addEventListener("message", async (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  // Check if the request is a navigation request
+  if (event.request.mode === "navigate") {
+    // Serve index.html for all navigation requests
+    event.respondWith(
+      caches.match("/index.html").then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse; // Serve from cache
+        }
+        return fetch("/index.html"); // Fallback to network
+      })
+    );
+  } 
+  // Handle other requests based on the routeMap
+  else if (routeMap.has(url.pathname)) {
+    const contentPath = routeMap.get(url.pathname);
+    event.respondWith(
+      caches.match(contentPath).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse; // Serve from cache
+        }
+        return fetch(contentPath); // Fallback to network
+      })
+    );
+  } 
+  // Default behavior: try cache first, then network
+  else {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request);
+      })
+    );
+  }
+});
+
+/*self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
   // Check if the current route matches a key in the routeMap
   if (routeMap.has(url.pathname)) {
     // Get the file path from the routeMap
@@ -100,13 +140,13 @@ self.addEventListener("fetch", (event) => {
 
     console.log("Attempting cache", filePath)
     // Construct the full path by combining basePath and filePath
-    const fullPath = `${basePath}${filePath}`;
+    // const fullPath = `${basePath}${filePath}`;
 
-    console.log("Matching as", fullPath)
+    console.log("Matching as", filePath)
     // Serve the file from cache or network
     event.respondWith(
 
-      caches.match(/*fullPath*/ filePath).then((cachedResponse) => {
+      caches.match(filePath).then((cachedResponse) => {
         if (cachedResponse) {
           console.log("Returning from cache after cache hit",filePath)
           return cachedResponse; // Serve from cache
