@@ -97,7 +97,7 @@ self.addEventListener("fetch", (event) => {
     const filePath = routeMap.get(url.pathname);
 
     // Construct the full path by combining basePath and filePath
-    const fullPath = `${BASE_PATH}${filePath}`;
+    const fullPath = `${basePath}${filePath}`;
 
     // Serve the file from cache or network
     event.respondWith(
