@@ -1,4 +1,3 @@
-/* sw.js: */
 const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v3";
 
@@ -9,7 +8,9 @@ let basePath = "/"; // Default base path
 function getRootUrl() {
   //const url = new URL(self.location.href);
   //return `${url.origin}${basePath}`; // Combine origin with the base path
-  return new URL(self.location.origin + self.location.pathname).href;
+
+  // Doesn't listen for basePath;
+  return new URL(self.location.origin + self.location.pathname + 'index.html').href;
 }
 
 self.addEventListener("install", (event) => {
@@ -106,7 +107,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || event.request.destination === "document") {
+  if (event.request.mode === "navigate" /*|| event.request.destination === "document"*/) {
     event.respondWith(
       caches.match(getRootUrl()).then((cachedResponse) => {
         if (cachedResponse) {
