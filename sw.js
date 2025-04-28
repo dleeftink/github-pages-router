@@ -96,6 +96,7 @@ self.addEventListener("fetch", (event) => {
     // Get the file path from the routeMap
     const filePath = routeMap.get(url.pathname);
 
+    console.log("Attempting cache", filePath)
     // Construct the full path by combining basePath and filePath
     const fullPath = `${basePath}${filePath}`;
 
@@ -110,6 +111,7 @@ self.addEventListener("fetch", (event) => {
     );
   } else {
     // Default behavior: try cache first, then network
+    console.log("Requesting",event.request);
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
