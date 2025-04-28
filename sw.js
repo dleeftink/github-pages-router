@@ -57,6 +57,15 @@ async function saveRouteMap() {
   }
 }
 
+let basePath = "/"; // Default base path
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SET_BASE_PATH") {
+    basePath = new URL(event.data.basePath).pathname; // Store the base path
+    console.log("Updated base path to", basePath)
+  }
+});
+
 self.addEventListener("message", async (event) => {
   if (event.data && event.data.type === "ADD_ROUTE") {
     const { href, content } = event.data;
@@ -66,6 +75,7 @@ self.addEventListener("message", async (event) => {
       const response = await fetch(content);
 
       if (response.ok) {
+        console.log("Caching as", content);
         await cache.put(content, response);
         routeMap.set(href, content); // Update in-memory routeMap
         await saveRouteMap(); // Persist the updated routeMap
@@ -79,14 +89,6 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-let basePath = "/"; // Default base path
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SET_BASE_PATH") {
-    basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log("Updated base path to", basePath)
-  }
-});
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -100,8 +102,10 @@ self.addEventListener("fetch", (event) => {
     // Construct the full path by combining basePath and filePath
     const fullPath = `${basePath}${filePath}`;
 
+    console.log("Matching as", fullPath)
     // Serve the file from cache or network
     event.respondWith(
+
       caches.match(fullPath).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
