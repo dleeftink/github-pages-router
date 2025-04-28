@@ -150,6 +150,7 @@ self.addEventListener("fetch", (event) => {
         integrity: event.request.integrity,
         isReload: event.isReload,
         headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+        routeMap:JSON.stringify([...routeMap.entries()])
       };
   
       // Send the debug information to each client
