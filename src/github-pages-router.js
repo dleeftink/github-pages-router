@@ -41,6 +41,10 @@
           // Register the service worker with the correct scope
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.active.postMessage({ type: "SET_BASE_PATH", basePath });
+          });
+          
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
           console.error("Service worker registration failed:", error);

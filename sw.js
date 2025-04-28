@@ -26,6 +26,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+
+
 async function loadRouteMap() {
   try {
     const cache = await caches.open(CACHE_NAME);
@@ -77,7 +79,75 @@ self.addEventListener("message", async (event) => {
   }
 });
 
+let basePath = "/"; // Default base path
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SET_BASE_PATH") {
+    basePath = new URL(event.data.basePath).pathname; // Store the base path
+    console.log("Updated base path to", basePath)
+  }
+});
+
 self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  // Check if the current route matches a key in the routeMap
+  if (routeMap.has(url.pathname)) {
+    // Get the file path from the routeMap
+    const filePath = routeMap.get(url.pathname);
+
+    // Construct the full path by combining basePath and filePath
+    const fullPath = `${BASE_PATH}${filePath}`;
+
+    // Serve the file from cache or network
+    event.respondWith(
+      caches.match(fullPath).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse; // Serve from cache
+        }
+        return fetch(fullPath); // Fallback to network
+      })
+    );
+  } else {
+    // Default behavior: try cache first, then network
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request);
+      })
+    );
+  }
+});
+
+/*xxself.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  if (routeMap.has(url.pathname)) {
+    const indexPath = basePath + "index.html"; // Construct the path to index.html
+
+    event.respondWith(
+      caches.match(indexPath).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(indexPath);
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request);
+      })
+    );
+  }
+});
+
+/*self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request matches a route in the routeMap
@@ -102,4 +172,4 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }
-});
+});*/
