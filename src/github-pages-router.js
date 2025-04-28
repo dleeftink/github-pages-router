@@ -5,11 +5,11 @@
   }
 
   // Global service worker readiness tracker
-  const serviceWorkerReady = new Promise((resolve,drop) => {
+  const serviceWorkerReady = new Promise((keep,drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      drop();
+      drop(new Error("Routes already defined"));
     } else if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener("controllerchange", () => resolve());
+      navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
 
@@ -202,7 +202,7 @@
           content: new URL(content, document.baseURI).toString(),
         })
         //}
-      }).catch(err=> console.log("Dropped route registration",err));
+      }).catch(err=> console.log(err,href,content));
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
