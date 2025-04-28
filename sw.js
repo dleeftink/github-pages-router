@@ -108,8 +108,10 @@ self.addEventListener("fetch", (event) => {
 
       caches.match(/*fullPath*/ filePath).then((cachedResponse) => {
         if (cachedResponse) {
+          console.log("Returning from cache after cache hit",filePath)
           return cachedResponse; // Serve from cache
         }
+        console.log("Fetching from network after cache hit",filePath)
         return fetch(fullPath); // Fallback to network
       })
     );
@@ -119,8 +121,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
+          console.log("Returning from cache after cache miss",filePath)
           return cachedResponse;
         }
+        console.log("Returning from cache after cache miss",filePath)
         return fetch(event.request);
       })
     );
