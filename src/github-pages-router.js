@@ -24,7 +24,7 @@
 
     keep;
     readyState = new Promise((resolve) => {
-      keep = resolve; // Save the resolve function for later use
+      this.keep = resolve; // Save the resolve function for later use
     });
 
     async connectedCallback() {
