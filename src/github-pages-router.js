@@ -20,19 +20,7 @@
 
       // Register the service worker
       this.registerServiceWorker();
-
-      // Initialize the router with the current URL
-      const currentUrl = location.pathname;
-      const matchingRoute = Array.from(this.querySelectorAll("ghp-route")).find(
-        (route) => new URL(route.getAttribute("href"), document.baseURI).pathname === currentUrl
-      );
-
-      if (matchingRoute) {
-        const contentPath = matchingRoute.getAttribute("content");
-        this.viewTransition(new URL(contentPath, document.baseURI).toString());
-      } else {
-        console.warn(`No matching route found for URL: ${currentUrl}`);
-      }
+      
     }
 
     async registerServiceWorker() {
