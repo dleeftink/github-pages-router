@@ -25,8 +25,13 @@
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
         try {
-          await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-          console.log("Service worker registered successfully.");
+          // Determine the base path dynamically
+          const basePath = location.pathname.endsWith("/") ? location.pathname : `${location.pathname}/`;
+          const swPath = `${basePath}sw.js`;
+  
+          // Register the service worker with the correct scope
+          await navigator.serviceWorker.register(swPath, { scope: basePath });
+          console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
           console.error("Service worker registration failed:", error);
         }
