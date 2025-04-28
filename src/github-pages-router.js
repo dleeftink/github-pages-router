@@ -28,7 +28,7 @@
       if (!this.contentElement) console.error("Cannot find contentElement");
 
       // Register the service worker
-      this.registerServiceWorker();
+      await this.registerServiceWorker();
 
     }
   
