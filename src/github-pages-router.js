@@ -166,8 +166,11 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      await this.router.readyState;
-      await this.router.readyState.registration.ready;
+      this.router.readyState.then(async (keep)=> {
+
+        await keep 
+        console.log("You have",keep)
+      
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
           console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
@@ -177,7 +180,7 @@
             content: new URL(content, document.baseURI).toString(),
           });
         //}
-      //});
+      });
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
