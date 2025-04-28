@@ -169,7 +169,7 @@
       this.router.readyState.then(async (keep)=> {
 
         console.log(keep);
-        console.log(await keep.active);
+        console.log((await keep).active);
         keep.active.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
