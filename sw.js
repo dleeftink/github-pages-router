@@ -168,10 +168,10 @@ self.addEventListener("fetch", (event) => {
   );
 
   // Send redirect event
-  if (
+  if (true/*
     routeMap.has(event.request.referrer) && // Referrer is not in the routeMap
     url.pathname.endsWith('github-pages-router.js') // URL ends with 'github-pages-router.js'
-  ) {
+  */) {
     event.waitUntil(
       self.clients.matchAll().then((clients) => {
         if (clients.length === 0) {
@@ -180,7 +180,7 @@ self.addEventListener("fetch", (event) => {
         }
         clients.forEach((client) => {
           try {
-            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:event.request.referrer} }); // Send the message to the client
+            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:'oi'/*event.request.referrer*/} }); // Send the message to the client
             console.log(`Sent NEEDS_REDIRECT message to client: ${client.id}`);
           } catch (error) {
             console.error(`Failed to send NEEDS_REDIRECT message to client ${client.id}:`, error);
