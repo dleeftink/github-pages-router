@@ -122,21 +122,24 @@
     connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
+    
       const href = this.getAttribute("href");
       const content = this.getAttribute("content");
+    
       if (!href || !content) {
         console.error("Missing href or content attribute");
         return;
       }
-
+    
       // Notify the service worker about the route
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: "ADD_ROUTE",
-          route: new URL(content, document.baseURI).toString(),
+          href: new URL(href, document.baseURI).pathname,
+          content: new URL(content, document.baseURI).toString(),
         });
       }
-
+    
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
         this.router.viewTransition(new URL(content, document.baseURI).toString());
