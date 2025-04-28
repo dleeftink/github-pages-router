@@ -1,8 +1,8 @@
 /*! fibo.github.io/github-pages-router • MIT License */
 (function GitHubPagesRouter() {
   function defineComponent(elementName, ElementClass) {
-    if (customElements.get(elementName)) return
-    customElements.define(elementName, ElementClass)
+    if (customElements.get(elementName)) return;
+    customElements.define(elementName, ElementClass);
   }
 
   /**
@@ -10,133 +10,136 @@
    */
   class GHPRouter extends HTMLElement {
     /** DOM Element that wraps the content, defaults to <main> tag. */
-    contentElement = undefined
-    navlinks = new Set
-    contentMap = new Map
-    routes = []
-
+    contentElement = undefined;
+    navlinks = new Set(); // Tracks all <ghp-navlink> components
+  
     connectedCallback() {
-      addEventListener("popstate", this)
-      this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main")
-      if (!this.contentElement) console.error("Cannot find contentElement")
-
-      // convenience listener to store last page content (not sure if needed)
-
-      // let main = document.getElementsByTagName('main')[0];
-      // window.addEventListener('pageswap', async (event) => {
-      //   sessionStorage.setItem('lastVisit', main.innerHTML);
-      // });
-
+      addEventListener("popstate", this);
+      this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
+      if (!this.contentElement) console.error("Cannot find contentElement");
+  
+      // Register the service worker
+      this.registerServiceWorker();
     }
-
-    handleEvent(event) {
-      if (event.type == "popstate") {
-        const contentUrl = this.contentUrlFromLocation(location.toString())
-        if (contentUrl) this.viewTransition(contentUrl)
+  
+    async registerServiceWorker() {
+      if ("serviceWorker" in navigator) {
+        try {
+          await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          console.log("Service worker registered successfully.");
+        } catch (error) {
+          console.error("Service worker registration failed:", error);
+        }
+      } else {
+        console.warn("Service workers are not supported in this browser.");
       }
     }
-
-    contentUrlFromLocation(url) {
-      const matchedRoute = this.routes.find(({ href }) => url == new URL(href, document.baseURI))
-      if (!matchedRoute) return
-      return new URL(matchedRoute.content, document.baseURI).toString()
+  
+    handleEvent(event) {
+      if (event.type === "popstate") {
+        const currentUrl = location.toString();
+        this.viewTransition(currentUrl);
+        this.updateNavLinks(); // Update aria-current attributes
+      }
     }
-
+  
     /**
      * Handle anchor click event.
      */
     navigate(event) {
-      event.preventDefault()
-      const { href } = event.target
-      if (href == document.location.toString()) return
-      const contentUrl = this.contentUrlFromLocation(href)
-      if (!contentUrl) return
-      history.pushState({}, "", href)
-      this.viewTransition(contentUrl)
+      event.preventDefault();
+      const { href } = event.target;
+      if (href === document.location.toString()) return;
+      history.pushState({}, "", href);
+      this.viewTransition(href);
+      this.updateNavLinks(); // Update aria-current attributes
     }
-
-    async viewTransition(contentUrl) {
-      if (!document.startViewTransition) return await this.updateContent(contentUrl);
-
-      // convenience setter to ensure main content is what has been loaded last (not sure if needed)
-      // let last = sessionStorage.getItem('lastVisit')
-      // this.contentElement.innerHTML = last; 
-
+  
+    async viewTransition(url) {
+      if (!document.startViewTransition) return await this.updateContent(url);
+  
       const transition = document.startViewTransition(async () => {
-        await this.updateContent(contentUrl);
-      })
+        await this.updateContent(url);
+      });
       await transition.finished;
     }
-
+  
     async updateContent(url) {
       const { contentElement } = this;
       if (!contentElement) return;
-
-      return new Promise(async (keep, drop) => {
-        try {
-          if (sessionStorage.getItem(url) /*this.contentMap.has(url)*/) {
-            contentElement.innerHTML = // this.contentMap.get(url); 
-              sessionStorage.getItem(url);
-            keep()
-          } else {
-            const response = await fetch(url);
-            const text = await response.text();
-            sessionStorage.setItem(url, text); // this.contentMap.set(url, text);
-            contentElement.innerHTML = text;
-            keep()
-          }
-          for (const navlink of this.navlinks.values()) navlink.setAriaCurrent(); // does this need to executed before promise is revolsed?
-        } catch (error) {
-          console.error(error);
-          drop(error);
-        }
-      })
+  
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to load content from ${url}`);
+        const text = await response.text();
+        contentElement.innerHTML = text;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  
+    /**
+     * Update aria-current attributes for all <ghp-navlink> components.
+     */
+    updateNavLinks() {
+      for (const navlink of this.navlinks.values()) {
+        navlink.setAriaCurrent();
+      }
     }
   }
 
-  defineComponent("ghp-router", GHPRouter)
+  defineComponent("ghp-router", GHPRouter);
 
   function findParentRouter(initialElement) {
-    let { parentElement: element } = initialElement
+    let { parentElement: element } = initialElement;
     while (element) {
-      if (element.localName == "ghp-router") return element
+      if (element.localName === "ghp-router") return element;
       element = element.parentElement;
     }
-    console.error(`No ghp-router found for element ${initialElement}`)
+    console.error(`No ghp-router found for element ${initialElement}`);
   }
 
   /**
    * Web component <ghp-route>.
    *
    * It requires the following attributes:
-   * - route
+   * - href
    * - content: URL to HTML content file.
    *
    * @example
    * ```html
-   * <ghp-route route="./" content="./path/to/file.html"></ghp-route>
+   * <ghp-route href="./" content="./path/to/file.html"></ghp-route>
    * ```
    */
   class GHPRoute extends HTMLElement {
-    router = undefined
+    router = undefined;
 
     connectedCallback() {
-      this.router = findParentRouter(this)
-      if (!this.router) return
-      const href = this.getAttribute("href")
-      const content = this.getAttribute("content")
+      this.router = findParentRouter(this);
+      if (!this.router) return;
+      const href = this.getAttribute("href");
+      const content = this.getAttribute("content");
       if (!href || !content) {
-        console.error("Missing href or content attribute")
-        return
+        console.error("Missing href or content attribute");
+        return;
       }
-      this.router.routes.push({ href, content })
-      if (new URL(href, document.baseURI).toString() == location.toString()) {
-        this.router.viewTransition(new URL(content, document.baseURI).toString())
+
+      // Notify the service worker about the route
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "ADD_ROUTE",
+          route: new URL(content, document.baseURI).toString(),
+        });
+      }
+
+      // If the current location matches the route, trigger a view transition
+      if (new URL(href, document.baseURI).toString() === location.toString()) {
+        this.router.viewTransition(new URL(content, document.baseURI).toString());
       }
     }
   }
 
-  defineComponent("ghp-route", GHPRoute)
+  defineComponent("ghp-route", GHPRoute);
 
   /**
    * Web component <ghp-link> handles an anchor that points to a route.
@@ -147,65 +150,65 @@
    * ```
    */
   class GHPLink extends HTMLElement {
-    router = undefined
+    router = undefined;
 
     connectedCallback() {
-      this.router = findParentRouter(this)
-      if (!this.router) return
-      this.anchor?.addEventListener("click", this)
+      this.router = findParentRouter(this);
+      if (!this.router) return;
+      this.anchor?.addEventListener("click", this);
     }
 
     get anchor() {
-      return this.querySelector("a")
+      return this.querySelector("a");
     }
 
     handleEvent(event) {
-      if (event.type == "click" && event.target == this.anchor) {
-        this.router?.navigate(event)
+      if (event.type === "click" && event.target === this.anchor) {
+        this.router?.navigate(event);
       }
     }
   }
 
-  defineComponent("ghp-link", GHPLink)
+  defineComponent("ghp-link", GHPLink);
 
   /**
-   * Web component <ghp-navlink> is similar to <ghp-link> but it also adds aria-selected="page" if the anchor points to current location.
+   * Web component <ghp-navlink> is similar to <ghp-link> but it also adds aria-selected="page" if the anchor points to the current location.
    */
   class GHPNavlink extends HTMLElement {
-    router = undefined
+    router = undefined;
 
     connectedCallback() {
-      this.router = findParentRouter(this)
-      if (!this.router) return
-      this.anchor?.addEventListener("click", this)
-      this.setAriaCurrent()
-      this.router.navlinks.add(this)
+      this.router = findParentRouter(this);
+      if (!this.router) return;
+      this.anchor?.addEventListener("click", this);
+      this.setAriaCurrent();
+      // this.router.navlinks.add(this);
     }
 
     disconnectedCallback() {
-      this.router?.navlinks.delete(this)
+      this.router?.navlinks.delete(this);
     }
 
     get anchor() {
-      return this.querySelector("a")
+      return this.querySelector("a");
     }
 
     handleEvent(event) {
-      if (event.type == "click" && event.target == this.anchor) {
-        this.router?.navigate(event)
+      if (event.type === "click" && event.target === this.anchor) {
+        this.router?.navigate(event);
       }
     }
 
     setAriaCurrent() {
       const { anchor } = this;
       if (!anchor) return;
-      if (anchor.href == document.location.toString()) {
-        anchor.setAttribute("aria-current", "page")
+      if (anchor.href === document.location.toString()) {
+        anchor.setAttribute("aria-current", "page");
       } else {
-        anchor.setAttribute("aria-current", "")
+        anchor.removeAttribute("aria-current");
       }
     }
   }
 
-  defineComponent("ghp-navlink", GHPNavlink)
+  defineComponent("ghp-navlink", GHPNavlink);
 })();
