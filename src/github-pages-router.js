@@ -22,6 +22,11 @@
     contentElement = undefined;
     navlinks = new Set(); // Tracks all <ghp-navlink> components
 
+    keep;
+    readyState = new Promise((resolve) => {
+      keep = resolve; // Save the resolve function for later use
+    });
+
     async connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
@@ -43,9 +48,8 @@
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           // Await the Service Worker's activation
-          //await registration.ready;
-
-          this.registration = registration;
+          await registration.ready;
+          this.keep(registration);
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -162,7 +166,7 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      await this.router.registration.ready;
+      await this.router.readyState;
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
           console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
