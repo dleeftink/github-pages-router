@@ -161,7 +161,7 @@
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
 
-      await serviceWorkerReady.then(() => {
+      await serviceWorkerReady;//.then(() => {
         if (navigator.serviceWorker.controller) {
           console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
@@ -170,7 +170,7 @@
             content: new URL(content, document.baseURI).toString(),
           });
         }
-      });
+      //});
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
