@@ -2,15 +2,24 @@ const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v3";
 
 let routeMap = new Map(); // In-memory route map
+let basePath = "/"; // Default base path
 
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      const rootUrl = self.location.href; // Dynamically determine the root location
+      return cache.add(rootUrl); // Cache the root location
+    })
+  );
+
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   console.log("Service worker activating...");
- 
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -27,6 +36,12 @@ self.addEventListener("activate", (event) => {
 });
 
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SET_BASE_PATH") {
+    basePath = new URL(event.data.basePath).pathname; // Store the base path
+    console.log("Updated base path to", basePath)
+  }
+});
 
 async function loadRouteMap() {
   try {
@@ -57,15 +72,6 @@ async function saveRouteMap() {
   }
 }
 
-let basePath = "/"; // Default base path
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SET_BASE_PATH") {
-    basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log("Updated base path to", basePath)
-  }
-});
-
 self.addEventListener("message", async (event) => {
   if (event.data && event.data.type === "ADD_ROUTE") {
     const { href, content } = event.data;
@@ -95,17 +101,15 @@ self.addEventListener("fetch", (event) => {
 
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
-    // Serve index.html for all navigation requests
     event.respondWith(
-      /*caches.match("/index.html").then((cachedResponse) => {
+      caches.match(self.location.href).then((cachedResponse) => {
         if (cachedResponse) {
-          return cachedResponse; // Serve from cache
+          return cachedResponse; // Serve the cached root location
         }
-        return fetch("https://dleeftink.github.io/github-pages-router/"); // Fallback to network
-      })*/
-      fetch(self.location.href)
+        return fetch(self.location.href); // Fallback to network
+      })
     );
-  } 
+  }
   // Handle other requests based on the routeMap
   else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname);
@@ -117,7 +121,7 @@ self.addEventListener("fetch", (event) => {
         return fetch(contentPath); // Fallback to network
       })
     );
-  } 
+  }
   // Default behavior: try cache first, then network
   else {
     event.respondWith(
