@@ -168,14 +168,11 @@
       // Wait for the service worker to be ready before sending ADD_ROUTE
       this.router.readyState.then(async (keep)=> {
 
-        await keep 
-        console.log("You have",keep)
-
-        keep.then((s)=> s.active.postMessage({
+        keep.active.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
-          }))
+          })
       
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
