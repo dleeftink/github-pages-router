@@ -180,7 +180,7 @@ self.addEventListener("fetch", (event) => {
         }
         clients.forEach((client) => {
           try {
-            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:'oi'/*event.request.referrer*/} }); // Send the message to the client
+            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:event.request.referrer,url: event.request.url} }); // Send the message to the client
             console.log(`Sent NEEDS_REDIRECT message to client: ${client.id}`);
           } catch (error) {
             console.error(`Failed to send NEEDS_REDIRECT message to client ${client.id}:`, error);
