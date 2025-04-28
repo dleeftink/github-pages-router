@@ -42,7 +42,7 @@
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           // Listen for messages from the service worker
-          registration.addEventListener("message", (event) => {
+          /*registration.addEventListener("message", (event) => {
             if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
               console.log("Redirected to root URL by service worker");
               // Update the SPA's internal state
@@ -57,7 +57,7 @@
               // Update the SPA's internal state
               window.location.href = "/"; // Redirect to the root URL
             }
-          });
+          });*/
 
           // Relay the basePath just in case
           // Only available after installation 

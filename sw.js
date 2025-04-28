@@ -107,18 +107,23 @@ self.addEventListener("fetch", (event) => {
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
-      caches.match(getRootUrl()).then(async (cachedResponse) => {
+      caches.match(rootUrl).then(async (cachedResponse) => {
         if (cachedResponse) {
+          console.log("Serving root URL from cache:", rootUrl);
+
+          // Notify all clients about the redirection
+          const clients = await self.clients.matchAll({ type: "window" });
+          clients.forEach((client) => {
+            if (client.url !== rootUrl) {
+              console.log("Redirecting client to root URL:", rootUrl);
+              client.navigate(rootUrl); // Redirect the client to the root URL
+            }
+          });
+
           return cachedResponse; // Serve the cached root location
         }
-
-        // Notify all clients about the redirection
-        const clients = await self.clients.matchAll();
-        clients.forEach((client) => {
-          client.postMessage({ type: "REDIRECTED_TO_ROOT" });
-        });
-
-        return fetch(getRootUrl()); // Fallback to network
+        console.log("Fetching root URL from network:", rootUrl);
+        return fetch(rootUrl); // Fallback to network
       })
     );
   }
