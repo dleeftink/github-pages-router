@@ -3,6 +3,12 @@ const ROUTE_MAP_KEY = "route-map-v3";
 
 let routeMap = new Map(); // In-memory route map
 
+// Determine the base path dynamically
+const basePath = (() => {
+  const path = self.location.pathname;
+  return path.substring(0, path.lastIndexOf("/") + 1); // Extract the directory part
+})();
+
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
   event.waitUntil(
@@ -10,8 +16,8 @@ self.addEventListener("install", (event) => {
       .open(CACHE_NAME)
       .then((cache) =>
         cache.addAll([
-          "/",
-          "/index.html"
+          `${basePath}`, // Root of the Service Worker's directory
+          `${basePath}index.html` // Index file in the Service Worker's directory
         ]),
       ),
   );
