@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(contentPath).then((cachedResponse) => {
         if (cachedResponse) {
-          return '<p>hello</p>'//cachedResponse; // Serve from cache
+          return cachedResponse; // Serve from cache
         }
         return fetch(contentPath); // Fallback to network
       })
