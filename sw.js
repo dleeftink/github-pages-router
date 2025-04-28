@@ -1,3 +1,5 @@
+/* sw.js */
+
 const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v3";
 
@@ -76,16 +78,20 @@ self.addEventListener("message", async (event) => {
     const { href, content } = event.data;
 
     try {
+      // Resolve href and content against the base path
+      const resolvedHref = new URL(href, basePath).toString();
+      const resolvedContent = new URL(content, basePath).toString();
+
       const cache = await caches.open(CACHE_NAME);
-      const response = await fetch(content);
+      const response = await fetch(resolvedContent);
 
       if (response.ok) {
-        await cache.put(content, response);
-        routeMap.set(href, content); // Update in-memory routeMap
+        await cache.put(resolvedContent, response);
+        routeMap.set(resolvedHref, resolvedContent); // Update in-memory routeMap
         await saveRouteMap(); // Persist the updated routeMap
-        console.log(`Route "${href}" mapped to "${content}" and added to cache.`);
+        console.log(`Route "${resolvedHref}" mapped to "${resolvedContent}" and added to cache.`);
       } else {
-        console.error(`Failed to cache route "${content}".`);
+        console.error(`Failed to cache route "${resolvedContent}".`);
       }
     } catch (error) {
       console.error(`Error caching route "${content}":`, error);
@@ -100,11 +106,11 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     // Serve index.html for all navigation requests
     event.respondWith(
-      caches.match("/index.html").then((cachedResponse) => {
+      caches.match(`${basePath}index.html`).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
-        return fetch("/index.html"); // Fallback to network
+        return fetch(`${basePath}index.html`); // Fallback to network
       })
     );
   } else {
