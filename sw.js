@@ -106,7 +106,7 @@ self.addEventListener("fetch", (event) => {
     // Serve the file from cache or network
     event.respondWith(
 
-      caches.match(fullPath).then((cachedResponse) => {
+      caches.match(/*fullPath*/ filePath).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
