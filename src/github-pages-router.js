@@ -42,6 +42,7 @@
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           navigator.serviceWorker.ready.then((registration) => {
+            const basePath = document.querySelector("base")?.href || "/";
             registration.active.postMessage({ type: "SET_BASE_PATH", basePath });
           });
           
