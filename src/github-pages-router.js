@@ -168,6 +168,8 @@
       // Wait for the service worker to be ready before sending ADD_ROUTE
       this.router.readyState.then(async (keep)=> {
 
+        console.log(keep);
+        console.log(keep.active);
         keep.active.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
