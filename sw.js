@@ -5,12 +5,20 @@ let routeMap = new Map(); // In-memory route map
 
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll([
+        "/", // Cache the root path (index.html)
+        "/index.html", // Explicitly cache index.html
+      ]);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   console.log("Service worker activating...");
- 
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -23,7 +31,7 @@ self.addEventListener("activate", (event) => {
     }).then(() => loadRouteMap()) // Load routeMap from cache
   );
 
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(self.clients.claim()); // Activate on first page load
 });
 
 async function loadRouteMap() {
@@ -80,15 +88,15 @@ self.addEventListener("message", async (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Check if the request matches a route in the routeMap
-  if (routeMap.has(url.pathname)) {
-    const contentPath = routeMap.get(url.pathname);
+  // Check if the request is a navigation request (HTML document)
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
+    // Serve index.html for all navigation requests
     event.respondWith(
-      caches.match(contentPath).then((cachedResponse) => {
+      caches.match("/index.html").then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
-        return fetch(contentPath); // Fallback to network
+        return fetch("/index.html"); // Fallback to network
       })
     );
   } else {
