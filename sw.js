@@ -6,12 +6,14 @@ let routeMap = new Map(); // In-memory route map
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        "/", // Cache the root path (index.html)
-        "/index.html", // Explicitly cache index.html
-      ]);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll([
+          "/",
+          "/index.html"
+        ]),
+      ),
   );
   self.skipWaiting();
 });
