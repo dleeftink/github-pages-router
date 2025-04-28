@@ -101,7 +101,7 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-self.addEventListener("fetch", async (event) => {
+self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
@@ -129,11 +129,6 @@ self.addEventListener("fetch", async (event) => {
     );
   }*/
 
-  const clients = await self.clients.matchAll();
-        clients.forEach((client) => {
-          client.postMessage({ type: "TEST_EVENT",data: "SOME DATA" });
-        })
-
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
@@ -150,13 +145,18 @@ self.addEventListener("fetch", async (event) => {
         });*/
 
         // Notify only the client that initiated the request
-        const clientId = event.clientId;
+        /*const clientId = event.clientId;
         if (clientId) {
           const client = await self.clients.get(clientId);
           if (client) {
             client.postMessage({ type: "REDIRECTED_TO_ROOT" });
           }
-        }
+        }*/
+
+        const clients = await self.clients.matchAll();
+        clients.forEach((client) => {
+          client.postMessage({ type: "TEST_EVENT",data: "SOME DATA" });
+        })
 
         return fetch(getRootUrl()); // Fallback to network
       })
