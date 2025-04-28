@@ -19,6 +19,16 @@
   const serviceWorkerReady = new Promise((resolve) => {
     resolveServiceWorkerReady = resolve; // Save the resolve function for later use
   });
+  
+  // Handle the case where the Service Worker is already controlling the page
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    resolveServiceWorkerReady(); // Resolve immediately if a controller exists
+  } else if (navigator.serviceWorker) {
+    // Wait for the `controllerchange` event to ensure the new Service Worker takes control
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      resolveServiceWorkerReady();
+    });
+  }
 
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
@@ -48,10 +58,14 @@
           // Register the service worker with the correct scope
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
-          // Await the service worker activation => how to make GHPRoute await this also
+          // Await the Service Worker's activation
           await registration.ready;
-          resolveServiceWorkerReady();
-
+          console.log("Service Worker is now active and ready.");
+    
+          // If there's no controller yet, wait for the `controllerchange` event
+          if (!navigator.serviceWorker.controller) {
+            await serviceWorkerReady; // Wait for the new Service Worker to take control
+          }
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
