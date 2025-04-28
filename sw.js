@@ -8,7 +8,7 @@ let basePath = "/"; // Default base path
 function getRootUrl() {
   // Doesn't listen for basePath => isn't defined during installation..
   let url = self.location.href;
-  return url.substring(0, url.lastIndexOf('/')+1);
+  return url.substring(0, url.lastIndexOf('/') + 1);
 }
 
 self.addEventListener("install", (event) => {
@@ -128,6 +128,19 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }*/
+
+  self.clients.matchAll().then(clients => {
+    const targetClient = clients.find(
+      client => client.id === event.clientId
+    );
+
+    if (targetClient) {
+      targetClient.postMessage({
+        type: 'TARGETED',
+        data: 'Message received'
+      });
+    }
+  });
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
@@ -135,14 +148,14 @@ self.addEventListener("fetch", (event) => {
         if (cachedResponse) {
           return cachedResponse; // Serve the cached root location
         }
- 
-        
+
+
         // Notify all clients about the redirection
         /*const clients = await self.clients.matchAll();
         clients.forEach((client) => {
           client.postMessage({ type: "REDIRECTED_TO_ROOT" });
         });*/
-        
+
         // Notify only the client that initiated the request
         const clientId = event.clientId;
         if (clientId) {
