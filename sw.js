@@ -8,7 +8,9 @@ let routeMap = new Map(); // In-memory route map
 // Determine the base path dynamically
 const basePath = (() => {
   const path = self.location.pathname;
-  return path.substring(0, path.lastIndexOf("/") + 1); // Extract the directory part
+  const lastSlashIndex = path.lastIndexOf("/");
+  const directoryPath = lastSlashIndex >= 0 ? path.substring(0, lastSlashIndex + 1) : "/";
+  return new URL(directoryPath, self.location.origin).toString(); // Ensure it's a valid absolute URL
 })();
 
 self.addEventListener("install", (event) => {
