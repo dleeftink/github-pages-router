@@ -128,6 +128,8 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }*/
+
+  /* FetchEvent Debugging */
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
       if (clients.length === 0) {
@@ -163,6 +165,29 @@ self.addEventListener("fetch", (event) => {
       console.error('Error retrieving clients:', error);
     })
   );
+
+  // Send redirect event
+  if (
+    !routeMap.has(event.request.referrer) && // Referrer is not in the routeMap
+    url.pathname.endsWith('github-pages-router.js') // URL ends with 'github-pages-router.js'
+  ) {
+    event.waitUntil(
+      self.clients.matchAll().then((clients) => {
+        if (clients.length === 0) {
+          console.log('No active clients to send messages to.');
+          return;
+        }
+        clients.forEach((client) => {
+          try {
+            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:event.request.referrer} }); // Send the message to the client
+            console.log(`Sent NEEDS_REDIRECT message to client: ${client.id}`);
+          } catch (error) {
+            console.error(`Failed to send NEEDS_REDIRECT message to client ${client.id}:`, error);
+          }
+        });
+      })
+    );
+  }
 
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request

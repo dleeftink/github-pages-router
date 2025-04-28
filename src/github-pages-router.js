@@ -66,8 +66,8 @@
               function setupMessageListener() {
                 navigator.serviceWorker.addEventListener('message', (event) => {
                   console.log("Message data received",event.data)
-                  if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
-                    console.log("Received REDIRECTED_TO_ROOT message from service worker", event);
+                  if (event.data && event.data.type === "NEEDS_REDIRECT") {
+                    console.log("Received NEEDS_REDIRECT message from service worker", event);
                     handlRedirect();
                   }
                 });
