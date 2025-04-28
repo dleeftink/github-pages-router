@@ -5,6 +5,15 @@
     customElements.define(elementName, ElementClass);
   }
 
+  // Global service worker readiness tracker
+  const serviceWorkerReady = new Promise((resolve) => {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      resolve();
+    } else if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve());
+    }
+  });
+
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -13,16 +22,16 @@
     contentElement = undefined;
     navlinks = new Set(); // Tracks all <ghp-navlink> components
 
-    connectedCallback() {
+    async connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
 
       // Register the service worker
       this.registerServiceWorker();
-      
-    }
 
+    }
+  
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
         try {
@@ -133,13 +142,24 @@
       }
 
       // Notify the service worker about the route
-      if (navigator.serviceWorker.controller) {
+      /*if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
         });
-      }
+      }*/
+
+      // Wait for the service worker to be ready before sending ADD_ROUTE
+      serviceWorkerReady.then(() => {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: "ADD_ROUTE",
+            href: new URL(href, document.baseURI).pathname,
+            content: new URL(content, document.baseURI).toString(),
+          });
+        }
+      });
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
