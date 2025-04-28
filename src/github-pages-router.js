@@ -170,15 +170,21 @@
 
         await keep 
         console.log("You have",keep)
+
+        keep.active.postMessage({
+          type: "ADD_ROUTE",
+          href: new URL(href, document.baseURI).pathname,
+          content: new URL(content, document.baseURI).toString(),
+        });
       
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
-          console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
+         /* console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
-          });
+          });*/
         //}
       });
 
