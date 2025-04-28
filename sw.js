@@ -128,48 +128,46 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }*/
+  event.waitUntil(
+    self.clients.matchAll().then((clients) => {
+      if (clients.length === 0) {
+        console.log('No active clients to send messages to.');
+        return;
+      }
   
+      // Extract serializable fields from the FetchEvent
+      const debugInfo = {
+        type: "TEST_EVENT",
+        url: event.request.url,
+        method: event.request.method,
+        mode: event.request.mode,
+        referrer: event.request.referrer,
+        destination: event.request.destination,
+        credentials: event.request.credentials,
+        redirect: event.request.redirect,
+        integrity: event.request.integrity,
+        isReload: event.isReload,
+        headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+      };
+  
+      // Send the debug information to each client
+      clients.forEach((client) => {
+        try {
+          client.postMessage(debugInfo);
+          console.log(`Debug info sent to client: ${client.id}`);
+        } catch (error) {
+          console.error(`Failed to send debug info to client ${client.id}:`, error);
+        }
+      });
+    }).catch((error) => {
+      console.error('Error retrieving clients:', error);
+    })
+  );
+
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
 
-    event.waitUntil(
-      self.clients.matchAll().then((clients) => {
-        if (clients.length === 0) {
-          console.log('No active clients to send messages to.');
-          return;
-        }
-    
-        // Extract serializable fields from the FetchEvent
-        const debugInfo = {
-          type: "TEST_EVENT",
-          url: event.request.url,
-          method: event.request.method,
-          mode: event.request.mode,
-          referrer: event.request.referrer,
-          destination: event.request.destination,
-          credentials: event.request.credentials,
-          redirect: event.request.redirect,
-          integrity: event.request.integrity,
-          isReload: event.isReload,
-          headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-        };
-    
-        // Send the debug information to each client
-        clients.forEach((client) => {
-          try {
-            client.postMessage(debugInfo);
-            console.log(`Debug info sent to client: ${client.id}`);
-          } catch (error) {
-            console.error(`Failed to send debug info to client ${client.id}:`, error);
-          }
-        });
-      }).catch((error) => {
-        console.error('Error retrieving clients:', error);
-      })
-    );
-
-    
     event.respondWith(
       caches.match(getRootUrl()).then(async (cachedResponse) => {
         if (cachedResponse) {

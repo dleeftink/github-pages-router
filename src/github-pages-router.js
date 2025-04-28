@@ -202,7 +202,7 @@
           content: new URL(content, document.baseURI).toString(),
         })
         //}
-      }).catch(err=> console.log(err,href,content));
+      }).catch(err=> console.warn(err.message,href,content));
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
