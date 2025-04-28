@@ -6,11 +6,13 @@ let basePath = "/"; // Default base path
 
 // Helper function to determine the root folder URL
 function getRootUrl() {
-  const url = new URL(self.location.href);
-  return `${url.origin}${basePath}`; // Combine origin with the base path
+  // const url = new URL(self.location.href);
+  // return `${url.origin}${basePath}`; // Combine origin with the base path
 
   // Doesn't listen for basePath;
   // return new URL(self.location.origin + self.location.pathname).href;
+  let url = self.location.href;
+  return url.substring(0, url.lastIndexOf('/')+1);
 }
 
 self.addEventListener("install", (event) => {
