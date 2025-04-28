@@ -5,9 +5,9 @@
   }
 
   // Global service worker readiness tracker
-  const serviceWorkerReady = new Promise((resolve) => {
+  const serviceWorkerReady = new Promise((resolve,drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      resolve();
+      drop();
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => resolve());
     }
@@ -202,7 +202,7 @@
           content: new URL(content, document.baseURI).toString(),
         })
         //}
-      });
+      }).catch(err=> console.log("Dropped route registration",err));
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
