@@ -29,6 +29,7 @@
 
       // Register the service worker
       await this.registerServiceWorker();
+      await serviceWorkerReady;
 
     }
   
