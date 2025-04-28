@@ -171,11 +171,11 @@
         await keep 
         console.log("You have",keep)
 
-        keep.active.postMessage({
-          type: "ADD_ROUTE",
-          href: new URL(href, document.baseURI).pathname,
-          content: new URL(content, document.baseURI).toString(),
-        });
+        keep.then((s)=> s.active.postMessage({
+            type: "ADD_ROUTE",
+            href: new URL(href, document.baseURI).pathname,
+            content: new URL(content, document.baseURI).toString(),
+          }))
       
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
