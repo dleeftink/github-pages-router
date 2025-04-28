@@ -1,15 +1,23 @@
+/* sw.js: */
 const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v3";
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
 
+// Helper function to determine the root folder URL
+function getRootUrl() {
+  //const url = new URL(self.location.href);
+  //return `${url.origin}${basePath}`; // Combine origin with the base path
+  return new URL(self.location.origin + self.location.pathname).href;
+}
+
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      const rootUrl = self.location.href; // Dynamically determine the root location
+      const rootUrl = getRootUrl(); // Dynamically determine the root location
       return cache.add(rootUrl); // Cache the root location
     })
   );
@@ -35,11 +43,10 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SET_BASE_PATH") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log("Updated base path to", basePath)
+    console.log("Updated base path to", basePath);
   }
 });
 
@@ -95,18 +102,17 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
-      caches.match(self.location.href).then((cachedResponse) => {
+      caches.match(getRootUrl()).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve the cached root location
         }
-        return fetch(self.location.href); // Fallback to network
+        return fetch(getRootUrl()); // Fallback to network
       })
     );
   }
