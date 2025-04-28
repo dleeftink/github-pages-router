@@ -169,6 +169,7 @@
       this.router.readyState.then(async (keep) => {
         const registration = await keep; // Await the inner Promise
         console.log(registration);
+        await registration.ready;
         registration.active.postMessage({
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
