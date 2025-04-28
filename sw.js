@@ -106,6 +106,7 @@ self.addEventListener("fetch", (event) => {
 
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
+    const rootUrl = getRootUrl();
     event.respondWith(
       caches.match(rootUrl).then(async (cachedResponse) => {
         if (cachedResponse) {
