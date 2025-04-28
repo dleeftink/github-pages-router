@@ -1,16 +1,36 @@
+/* sw.js */
+
 const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v3";
 
 let routeMap = new Map(); // In-memory route map
 
+// Determine the base path dynamically
+const basePath = (() => {
+  const path = self.location.pathname;
+  const lastSlashIndex = path.lastIndexOf("/");
+  const directoryPath = lastSlashIndex >= 0 ? path.substring(0, lastSlashIndex + 1) : "/";
+  return new URL(directoryPath, self.location.origin).toString(); // Ensure it's a valid absolute URL
+})();
+
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll([
+          `${basePath}`, // Root of the Service Worker's directory
+          `${basePath}index.html` // Index file in the Service Worker's directory
+        ]),
+      ),
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   console.log("Service worker activating...");
- 
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -23,7 +43,7 @@ self.addEventListener("activate", (event) => {
     }).then(() => loadRouteMap()) // Load routeMap from cache
   );
 
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(self.clients.claim()); // Activate on first page load
 });
 
 async function loadRouteMap() {
@@ -60,16 +80,20 @@ self.addEventListener("message", async (event) => {
     const { href, content } = event.data;
 
     try {
+      // Resolve href and content against the base path
+      const resolvedHref = new URL(href, basePath).toString();
+      const resolvedContent = new URL(content, basePath).toString();
+
       const cache = await caches.open(CACHE_NAME);
-      const response = await fetch(content);
+      const response = await fetch(resolvedContent);
 
       if (response.ok) {
-        await cache.put(content, response);
-        routeMap.set(href, content); // Update in-memory routeMap
+        await cache.put(resolvedContent, response);
+        routeMap.set(resolvedHref, resolvedContent); // Update in-memory routeMap
         await saveRouteMap(); // Persist the updated routeMap
-        console.log(`Route "${href}" mapped to "${content}" and added to cache.`);
+        console.log(`Route "${resolvedHref}" mapped to "${resolvedContent}" and added to cache.`);
       } else {
-        console.error(`Failed to cache route "${content}".`);
+        console.error(`Failed to cache route "${resolvedContent}".`);
       }
     } catch (error) {
       console.error(`Error caching route "${content}":`, error);
@@ -80,15 +104,15 @@ self.addEventListener("message", async (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Check if the request matches a route in the routeMap
-  if (routeMap.has(url.pathname)) {
-    const contentPath = routeMap.get(url.pathname);
+  // Check if the request is a navigation request (HTML document)
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
+    // Serve index.html for all navigation requests
     event.respondWith(
-      caches.match(contentPath).then((cachedResponse) => {
+      caches.match(`${basePath}index.html`).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
-        return fetch(contentPath); // Fallback to network
+        return fetch(`${basePath}index.html`); // Fallback to network
       })
     );
   } else {
