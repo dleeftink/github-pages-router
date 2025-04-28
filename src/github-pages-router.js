@@ -68,7 +68,7 @@
                   console.log("Message data received",event.data)
                   if (event.data && event.data.type === "NEEDS_REDIRECT") {
                     console.log("Received NEEDS_REDIRECT message from service worker", event.data);
-                    // handlRedirect();
+                    handlRedirect();
                   }
                 });
               }
