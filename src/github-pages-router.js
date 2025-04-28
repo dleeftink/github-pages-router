@@ -40,9 +40,18 @@
 
           // Register the service worker with the correct scope
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
-          
+
           // Listen for messages from the service worker
           registration.addEventListener("message", (event) => {
+            if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
+              console.log("Redirected to root URL by service worker");
+              // Update the SPA's internal state
+              window.location.href = "/"; // Redirect to the root URL
+            }
+          });
+
+          // Optionally, listen for messages globally as well
+          navigator.serviceWorker.addEventListener("message", (event) => {
             if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
               console.log("Redirected to root URL by service worker");
               // Update the SPA's internal state
@@ -57,7 +66,7 @@
             registration.active.postMessage({ type: "SET_BASE_PATH", basePath });
 
           });
-          
+
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
           console.error("Service worker registration failed:", error);
@@ -157,15 +166,15 @@
         console.error("Missing href or content attribute");
         return;
       }
-      
+
       serviceWorkerReady.then(() => {
-       //if (navigator.serviceWorker.controller) {
-         console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
-          navigator.serviceWorker.controller.postMessage({
-            type: "ADD_ROUTE",
-            href: new URL(href, document.baseURI).pathname,
-            content: new URL(content, document.baseURI).toString(),
-          })
+        //if (navigator.serviceWorker.controller) {
+        console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
+        navigator.serviceWorker.controller.postMessage({
+          type: "ADD_ROUTE",
+          href: new URL(href, document.baseURI).pathname,
+          content: new URL(content, document.baseURI).toString(),
+        })
         //}
       });
 
