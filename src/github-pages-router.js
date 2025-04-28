@@ -48,7 +48,7 @@
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           // Await the Service Worker's activation
-          await registration.ready;
+          // await registration.ready;
           this.keep(registration);
 
           console.log("Service worker registered successfully at:", swPath);
@@ -167,6 +167,7 @@
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
       await this.router.readyState;
+      await this.router.readyState.registration.ready;
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
           console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
