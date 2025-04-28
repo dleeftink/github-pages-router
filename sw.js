@@ -135,7 +135,7 @@ self.addEventListener("fetch", (event) => {
     }
 
     clients.forEach((client) => {
-      client.postMessage({ type: "TEST_EVENT",nested: event, ...event });
+      client.postMessage({ type: "TEST_EVENT",nested: JSON.stringify(event), mode:event.request.mode });
     })
   }));
 
