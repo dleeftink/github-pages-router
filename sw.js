@@ -105,7 +105,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || event.request.destination === "document") {
+  /*if (event.request.mode === "navigate" || event.request.destination === "document") {
     const rootUrl = getRootUrl();
     event.respondWith(
       caches.match(rootUrl).then(async (cachedResponse) => {
@@ -125,6 +125,34 @@ self.addEventListener("fetch", (event) => {
         }
         console.log("Fetching root URL from network:", rootUrl);
         return fetch(rootUrl); // Fallback to network
+      })
+    );
+  }*/
+  // Check if the request is a navigation request
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
+    event.respondWith(
+      caches.match(getRootUrl()).then(async (cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse; // Serve the cached root location
+        }
+ 
+        
+        // Notify all clients about the redirection
+        /*const clients = await self.clients.matchAll();
+        clients.forEach((client) => {
+          client.postMessage({ type: "REDIRECTED_TO_ROOT" });
+        });*/
+        
+        // Notify only the client that initiated the request
+        const clientId = event.clientId;
+        if (clientId) {
+          const client = await self.clients.get(clientId);
+          if (client) {
+            client.postMessage({ type: "REDIRECTED_TO_ROOT" });
+          }
+        }
+
+        return fetch(getRootUrl()); // Fallback to network
       })
     );
   }
