@@ -60,12 +60,12 @@
       // If content is cached, simulate an async behaviour.
       const cachedContent = contentMap.get(url)
       if (cachedContent) {
-        await new Promise(resolve => {
-          setTimeout(() => {
+        // await new Promise(resolve => {
+          // setTimeout(() => {
             contentElement.innerHTML = cachedContent
-            resolve()
-          }, /* notice, no timeout here */)
-        })
+            // resolve()
+          // }, /* notice, no timeout here */)
+        // })
       } else {
         // Content is not cached, try to fetch it.
         try {
