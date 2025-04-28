@@ -38,17 +38,17 @@
           const basePath = new URL(document.baseURI).pathname;
           const swPath = `${basePath}sw.js`;
 
+          // Register the service worker with the correct scope
+          const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
+          
           // Listen for messages from the service worker
-          navigator.serviceWorker.addEventListener("message", (event) => {
+          registration.addEventListener("message", (event) => {
             if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
               console.log("Redirected to root URL by service worker");
               // Update the SPA's internal state
               window.location.href = "/"; // Redirect to the root URL
             }
           });
-
-          // Register the service worker with the correct scope
-          const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           // Relay the basePath just in case
           // Only available after installation 
