@@ -27,7 +27,7 @@
         try {
           // Use document.baseURI to determine the base path
           const basePath = new URL(document.baseURI).pathname;
-          const swPath = `${basePath}sw.js`;
+          const swPath = `${basePath}src/sw.js`;
     
           // Register the service worker with the correct scope
           await navigator.serviceWorker.register(swPath, { scope: basePath });
