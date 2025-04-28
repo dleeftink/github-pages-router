@@ -66,7 +66,7 @@
               function setupMessageListener() {
                 navigator.serviceWorker.addEventListener('message', (event) => {
                   console.log("Message data received",event.data)
-                  if (event.data && event.data.type === "NEEDS_REDIRECT" && event.data.url.endsWith('github-pages-router.js')) {
+                  if (event.data && event.data.type === "NEEDS_REDIRECT" && event.data.data.url.endsWith('github-pages-router.js')) {
                     console.log("Received NEEDS_REDIRECT message from service worker", event.data);
                     handlRedirect();
                   }
