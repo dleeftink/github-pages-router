@@ -128,9 +128,20 @@ self.addEventListener("fetch", (event) => {
       })
     );
   }*/
+  event.waitUntil(self.clients.matchAll().then(clients=> {
+    if (clients.length === 0) {
+      console.log('No active clients to send messages to.');
+      return;
+    }
+
+    clients.forEach((client) => {
+      client.postMessage({ type: "TEST_EVENT",data: "SOME DATA" });
+    })
+  }));
 
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
+
     event.respondWith(
       caches.match(getRootUrl()).then(async (cachedResponse) => {
         if (cachedResponse) {
@@ -152,11 +163,6 @@ self.addEventListener("fetch", (event) => {
             client.postMessage({ type: "REDIRECTED_TO_ROOT" });
           }
         }*/
-
-        const clients = await self.clients.matchAll();
-        clients.forEach((client) => {
-          client.postMessage({ type: "TEST_EVENT",data: "SOME DATA" });
-        })
 
         return fetch(getRootUrl()); // Fallback to network
       })
