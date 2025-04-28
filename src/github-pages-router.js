@@ -42,8 +42,9 @@
           // const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           navigator.serviceWorker.register(swPath, { scope: basePath }).then(reg=> {
-            console.log("Inside",reg);
+            console.log("Inside main",reg);
             navigator.serviceWorker.addEventListener("message", (event) => {
+              console.log("Received",event);
               if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
                 console.log("Redirected to root URL by service worker");
                 let url = self.location.href;
