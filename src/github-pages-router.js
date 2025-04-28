@@ -6,29 +6,13 @@
   }
 
   // Global service worker readiness tracker
-  /*const serviceWorkerReady = new Promise((resolve) => {
+  const serviceWorkerReady = new Promise((resolve) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       resolve();
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => resolve());
     }
-  });*/
-
-  // Global promise for Service Worker readiness
-  let resolveServiceWorkerReady;
-  const serviceWorkerReady = new Promise((resolve) => {
-    resolveServiceWorkerReady = resolve; // Save the resolve function for later use
   });
-  
-  // Handle the case where the Service Worker is already controlling the page
-  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-    resolveServiceWorkerReady(); // Resolve immediately if a controller exists
-  } else if (navigator.serviceWorker) {
-    // Wait for the `controllerchange` event to ensure the new Service Worker takes control
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      resolveServiceWorkerReady();
-    });
-  }
 
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
@@ -47,7 +31,7 @@
       await this.registerServiceWorker();
 
     }
-  
+
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
         try {
@@ -60,12 +44,6 @@
 
           // Await the Service Worker's activation
           await registration.ready;
-          console.log("Service Worker is now active and ready.");
-    
-          // If there's no controller yet, wait for the `controllerchange` event
-          if (!navigator.serviceWorker.controller) {
-            await serviceWorkerReady; // Wait for the new Service Worker to take control
-          }
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -167,6 +145,11 @@
         return;
       }
 
+      if (this.matches(':last-of-type')) {
+        console.log('At last route')
+        // Send routesReady event or something
+      }
+
       // Notify the service worker about the route
       /*if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
@@ -177,9 +160,10 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      
+
       serviceWorkerReady.then(() => {
         if (navigator.serviceWorker.controller) {
+          console.log("Inside serviceWorkerReady promise",navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
