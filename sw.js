@@ -101,7 +101,7 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-self.addEventListener("fetch", (event) => {
+self.addEventListener("fetch", async (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
@@ -129,18 +129,11 @@ self.addEventListener("fetch", (event) => {
     );
   }*/
 
-  self.clients.matchAll().then(clients => {
-    const targetClient = clients.find(
-      client => client.id === event.clientId
-    );
+  const clients = await self.clients.matchAll();
+        clients.forEach((client) => {
+          client.postMessage({ type: "TEST_EVENT",data: "SOME DATA" });
+        })
 
-    if (targetClient) {
-      targetClient.postMessage({
-        type: 'TARGETED',
-        data: 'Message received'
-      });
-    }
-  });
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
