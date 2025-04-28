@@ -169,6 +169,7 @@ self.addEventListener("fetch", (event) => {
 
   // Send redirect event
   if (
+    event.request && event.request.referrer &&
     !routeMap.has(new URL(event.request.referrer).pathname) /*&& // Referrer is not in the routeMap
     event.request.url.endsWith('github-pages-router.js') */// URL ends with 'github-pages-router.js'
   ) {
