@@ -49,8 +49,7 @@
 
           // Await the Service Worker's activation
           // await registration.ready;
-          // this.keep(registration);
-          this.keep(Promise.resolve(registration));
+          this.keep(registration);
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -166,29 +165,16 @@
         });
       }*/
 
-      this.router.readyState.then(async (keep) => {
-        const registration = await keep; // Await the inner Promise
-        console.log(registration);
+      // Wait for the service worker to be ready before sending ADD_ROUTE
+      this.router.readyState.then(async (keep)=> {
 
-        await registration.installing?.waitUntil;
-        await registration.waiting?.postMessage({ action: 'skipWaiting' });
-        //await registration.ready;
-        registration.active.postMessage({
+        console.log(keep);
+        console.log((await keep).active);
+        keep.active.postMessage({
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
-        });
-      });
-      // Wait for the service worker to be ready before sending ADD_ROUTE
-      /*this.router.readyState.then(async (keep)=> {
-
-        console.log(keep);
-        console.log((await keep));
-        /*keep.active.postMessage({
-            type: "ADD_ROUTE",
-            href: new URL(href, document.baseURI).pathname,
-            content: new URL(content, document.baseURI).toString(),
-          })*/  
+        })
       
       //await serviceWorkerReady;//.then(() => {
        // if (navigator.serviceWorker.controller) {
@@ -199,7 +185,7 @@
             content: new URL(content, document.baseURI).toString(),
           });*/
         //}
-      //});
+      });
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
