@@ -203,7 +203,7 @@
       if (!this.router) return;
       this.anchor?.addEventListener("click", this);
       this.setAriaCurrent();
-      // this.router.navlinks.add(this);
+      this.router.navlinks.add(this);
     }
 
     disconnectedCallback() {
