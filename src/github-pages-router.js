@@ -6,12 +6,18 @@
   }
 
   // Global service worker readiness tracker
-  const serviceWorkerReady = new Promise((resolve) => {
+  /*const serviceWorkerReady = new Promise((resolve) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       resolve();
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => resolve());
     }
+  });*/
+
+  // Global promise for Service Worker readiness
+  let resolveServiceWorkerReady;
+  const serviceWorkerReady = new Promise((resolve) => {
+    resolveServiceWorkerReady = resolve; // Save the resolve function for later use
   });
 
   /**
@@ -40,7 +46,13 @@
           const swPath = `${basePath}sw.js`;
 
           // Register the service worker with the correct scope
-          await navigator.serviceWorker.register(swPath, { scope: basePath });
+          const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
+
+          // Await the service worker activation => how to make GHPRoute await this also
+          await registration.ready;
+          resolveServiceWorkerReady();
+
+
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
           console.error("Service worker registration failed:", error);
@@ -129,7 +141,7 @@
   class GHPRoute extends HTMLElement {
     router = undefined;
 
-    async connectedCallback() {
+    connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
 
@@ -151,16 +163,16 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      await serviceWorkerReady;
-      //serviceWorkerReady.then(() => {
-        //if (navigator.serviceWorker.controller) {
+      
+      serviceWorkerReady.then(() => {
+        if (navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
           });
-        //}
-      //});
+        }
+      });
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
