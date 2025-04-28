@@ -43,7 +43,9 @@
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           // Await the Service Worker's activation
-          await registration.ready;
+          //await registration.ready;
+
+          this.registration = registration;
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -160,16 +162,16 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-
-      await serviceWorkerReady;//.then(() => {
-        if (navigator.serviceWorker.controller) {
+      await this.router.registration.ready;
+      //await serviceWorkerReady;//.then(() => {
+       // if (navigator.serviceWorker.controller) {
           console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
           });
-        }
+        //}
       //});
 
       // If the current location matches the route, trigger a view transition
