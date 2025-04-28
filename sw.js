@@ -1,5 +1,7 @@
-const CACHE_NAME = "github-pages-cache-v3";
-const routeMap = new Map(); // Maps href to content path
+const CACHE_NAME = "github-pages-cache-v4";
+const ROUTE_MAP_KEY = "route-map-v1";
+
+let routeMap = new Map(); // In-memory route map
 
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...");
@@ -17,8 +19,59 @@ self.addEventListener("activate", (event) => {
           }
         })
       );
-    })
+    }).then(() => loadRouteMap()) // Load routeMap from cache
   );
+});
+
+async function loadRouteMap() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const response = await cache.match(ROUTE_MAP_KEY);
+
+    if (response) {
+      const data = await response.json();
+      routeMap = new Map(data); // Deserialize routeMap
+      console.log("Loaded routeMap from cache:", routeMap);
+    } else {
+      console.log("No routeMap found in cache.");
+    }
+  } catch (error) {
+    console.error("Error loading routeMap:", error);
+  }
+}
+
+async function saveRouteMap() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const serializedRouteMap = JSON.stringify(Array.from(routeMap.entries()));
+    const response = new Response(serializedRouteMap, { headers: { "Content-Type": "application/json" } });
+    await cache.put(ROUTE_MAP_KEY, response);
+    console.log("Saved routeMap to cache:", routeMap);
+  } catch (error) {
+    console.error("Error saving routeMap:", error);
+  }
+}
+
+self.addEventListener("message", async (event) => {
+  if (event.data && event.data.type === "ADD_ROUTE") {
+    const { href, content } = event.data;
+
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const response = await fetch(content);
+
+      if (response.ok) {
+        await cache.put(content, response);
+        routeMap.set(href, content); // Update in-memory routeMap
+        await saveRouteMap(); // Persist the updated routeMap
+        console.log(`Route "${href}" mapped to "${content}" and added to cache.`);
+      } else {
+        console.error(`Failed to cache route "${content}".`);
+      }
+    } catch (error) {
+      console.error(`Error caching route "${content}":`, error);
+    }
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -45,26 +98,5 @@ self.addEventListener("fetch", (event) => {
         return fetch(event.request);
       })
     );
-  }
-});
-
-self.addEventListener("message", async (event) => {
-  if (event.data && event.data.type === "ADD_ROUTE") {
-    const { href, content } = event.data;
-
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      const response = await fetch(content);
-
-      if (response.ok) {
-        await cache.put(content, response);
-        routeMap.set(href, content); // Add mapping to routeMap
-        console.log(`Route "${href}" mapped to "${content}" and added to cache.`);
-      } else {
-        console.error(`Failed to cache route "${content}".`);
-      }
-    } catch (error) {
-      console.error(`Error caching route "${content}":`, error);
-    }
   }
 });
