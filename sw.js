@@ -6,11 +6,11 @@ let basePath = "/"; // Default base path
 
 // Helper function to determine the root folder URL
 function getRootUrl() {
+  // Old cod
   // const url = new URL(self.location.href);
   // return `${url.origin}${basePath}`; // Combine origin with the base path
 
-  // Doesn't listen for basePath;
-  // return new URL(self.location.origin + self.location.pathname).href;
+  // Doesn't listen for basePath => isn't defined during installation..
   let url = self.location.href;
   return url.substring(0, url.lastIndexOf('/')+1);
 }
@@ -109,7 +109,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" /*|| event.request.destination === "document"*/) {
+  if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
       caches.match(getRootUrl()).then((cachedResponse) => {
         if (cachedResponse) {
@@ -143,97 +143,3 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
-
-/*self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Check if the current route matches a key in the routeMap
-  if (routeMap.has(url.pathname)) {
-    // Get the file path from the routeMap
-    const filePath = routeMap.get(url.pathname);
-
-    console.log("Attempting cache", filePath)
-    // Construct the full path by combining basePath and filePath
-    // const fullPath = `${basePath}${filePath}`;
-
-    console.log("Matching as", filePath)
-    // Serve the file from cache or network
-    event.respondWith(
-
-      caches.match(filePath).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.log("Returning from cache after cache hit",filePath)
-          return cachedResponse; // Serve from cache
-        }
-        console.log("Fetching from network after cache hit",filePath)
-        return fetch(fullPath); // Fallback to network
-      })
-    );
-  } else {
-    // Default behavior: try cache first, then network
-    console.log("Requesting",event.request);
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.log("Returning from cache after cache miss",filePath)
-          return cachedResponse;
-        }
-        console.log("Returning from cache after cache miss",filePath)
-        return fetch(event.request);
-      })
-    );
-  }
-});
-
-/*xxself.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  if (routeMap.has(url.pathname)) {
-    const indexPath = basePath + "index.html"; // Construct the path to index.html
-
-    event.respondWith(
-      caches.match(indexPath).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(indexPath);
-      })
-    );
-  } else {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(event.request);
-      })
-    );
-  }
-});
-
-/*self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Check if the request matches a route in the routeMap
-  if (routeMap.has(url.pathname)) {
-    const contentPath = routeMap.get(url.pathname);
-    event.respondWith(
-      caches.match(contentPath).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse; // Serve from cache
-        }
-        return fetch(contentPath); // Fallback to network
-      })
-    );
-  } else {
-    // Default behavior: try cache first, then network
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(event.request);
-      })
-    );
-  }
-});*/
