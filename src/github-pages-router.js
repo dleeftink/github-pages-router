@@ -151,7 +151,7 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      await serviceWorkerReady();
+      await serviceWorkerReady;
       //serviceWorkerReady.then(() => {
         //if (navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
