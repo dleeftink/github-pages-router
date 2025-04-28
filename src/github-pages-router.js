@@ -1,4 +1,3 @@
-/*! fibo.github.io/github-pages-router • MIT License */
 (function GitHubPagesRouter() {
   function defineComponent(elementName, ElementClass) {
     if (customElements.get(elementName)) return;
@@ -22,11 +21,6 @@
     contentElement = undefined;
     navlinks = new Set(); // Tracks all <ghp-navlink> components
 
-    keep;
-    readyState = new Promise((resolve) => {
-      this.keep = resolve; // Save the resolve function for later use
-    });
-
     async connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
@@ -46,10 +40,6 @@
 
           // Register the service worker with the correct scope
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
-
-          // Await the Service Worker's activation
-          // await registration.ready;
-          this.keep(registration);
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -150,34 +140,9 @@
         console.error("Missing href or content attribute");
         return;
       }
-
-      if (this.matches(':last-of-type')) {
-        console.log('At last route')
-        // Send routesReady event or something
-      }
-
-      // Notify the service worker about the route
-      /*if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: "ADD_ROUTE",
-          href: new URL(href, document.baseURI).pathname,
-          content: new URL(content, document.baseURI).toString(),
-        });
-      }*/
-
-      // Wait for the service worker to be ready before sending ADD_ROUTE
-      /*this.router.readyState.then(async (keep)=> {
-
-        console.log(keep);
-        console.log((await keep).active);
-        keep.active.postMessage({
-          type: "ADD_ROUTE",
-          href: new URL(href, document.baseURI).pathname,
-          content: new URL(content, document.baseURI).toString(),
-        })*/
       
       serviceWorkerReady.then(() => {
-       // if (navigator.serviceWorker.controller) {
+       //if (navigator.serviceWorker.controller) {
          console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
