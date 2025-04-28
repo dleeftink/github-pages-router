@@ -12,23 +12,36 @@
     /** DOM Element that wraps the content, defaults to <main> tag. */
     contentElement = undefined;
     navlinks = new Set(); // Tracks all <ghp-navlink> components
-  
+
     connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
-  
+
       // Register the service worker
       this.registerServiceWorker();
+
+      // Initialize the router with the current URL
+      const currentUrl = location.pathname;
+      const matchingRoute = Array.from(this.querySelectorAll("ghp-route")).find(
+        (route) => new URL(route.getAttribute("href"), document.baseURI).pathname === currentUrl
+      );
+
+      if (matchingRoute) {
+        const contentPath = matchingRoute.getAttribute("content");
+        this.viewTransition(new URL(contentPath, document.baseURI).toString());
+      } else {
+        console.warn(`No matching route found for URL: ${currentUrl}`);
+      }
     }
-  
+
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
         try {
           // Use document.baseURI to determine the base path
           const basePath = new URL(document.baseURI).pathname;
           const swPath = `${basePath}sw.js`;
-    
+
           // Register the service worker with the correct scope
           await navigator.serviceWorker.register(swPath, { scope: basePath });
           console.log("Service worker registered successfully at:", swPath);
@@ -39,7 +52,7 @@
         console.warn("Service workers are not supported in this browser.");
       }
     }
-  
+
     handleEvent(event) {
       if (event.type === "popstate") {
         const currentUrl = location.toString();
@@ -47,7 +60,7 @@
         this.updateNavLinks(); // Update aria-current attributes
       }
     }
-  
+
     /**
      * Handle anchor click event.
      */
@@ -59,20 +72,20 @@
       this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
     }
-  
+
     async viewTransition(url) {
       if (!document.startViewTransition) return await this.updateContent(url);
-  
+
       const transition = document.startViewTransition(async () => {
         await this.updateContent(url);
       });
       await transition.finished;
     }
-  
+
     async updateContent(url) {
       const { contentElement } = this;
       if (!contentElement) return;
-  
+
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to load content from ${url}`);
@@ -82,7 +95,7 @@
         console.error(error);
       }
     }
-  
+
     /**
      * Update aria-current attributes for all <ghp-navlink> components.
      */
@@ -122,15 +135,15 @@
     connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
-    
+
       const href = this.getAttribute("href");
       const content = this.getAttribute("content");
-    
+
       if (!href || !content) {
         console.error("Missing href or content attribute");
         return;
       }
-    
+
       // Notify the service worker about the route
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
@@ -139,7 +152,7 @@
           content: new URL(content, document.baseURI).toString(),
         });
       }
-    
+
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
         this.router.viewTransition(new URL(content, document.baseURI).toString());
