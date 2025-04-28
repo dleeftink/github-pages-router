@@ -29,7 +29,6 @@
 
       // Register the service worker
       await this.registerServiceWorker();
-      await serviceWorkerReady;
 
     }
   
@@ -130,7 +129,7 @@
   class GHPRoute extends HTMLElement {
     router = undefined;
 
-    connectedCallback() {
+    async connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
 
@@ -152,15 +151,16 @@
       }*/
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
-      serviceWorkerReady.then(() => {
-        if (navigator.serviceWorker.controller) {
+      await serviceWorkerReady();
+      //serviceWorkerReady.then(() => {
+        //if (navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             content: new URL(content, document.baseURI).toString(),
           });
-        }
-      });
+        //}
+      //});
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {
