@@ -97,12 +97,13 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     // Serve index.html for all navigation requests
     event.respondWith(
-      caches.match("/index.html").then((cachedResponse) => {
+      /*caches.match("/index.html").then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
-        return fetch("/index.html"); // Fallback to network
-      })
+        return fetch("https://dleeftink.github.io/github-pages-router/"); // Fallback to network
+      })*/
+      fetch("https://dleeftink.github.io/github-pages-router/")
     );
   } 
   // Handle other requests based on the routeMap
