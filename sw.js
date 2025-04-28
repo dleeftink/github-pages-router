@@ -6,10 +6,6 @@ let basePath = "/"; // Default base path
 
 // Helper function to determine the root folder URL
 function getRootUrl() {
-  // Old cod
-  // const url = new URL(self.location.href);
-  // return `${url.origin}${basePath}`; // Combine origin with the base path
-
   // Doesn't listen for basePath => isn't defined during installation..
   let url = self.location.href;
   return url.substring(0, url.lastIndexOf('/')+1);
@@ -111,10 +107,17 @@ self.addEventListener("fetch", (event) => {
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
-      caches.match(getRootUrl()).then((cachedResponse) => {
+      caches.match(getRootUrl()).then(async (cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse; // Serve the cached root location
         }
+
+        // Notify all clients about the redirection
+        const clients = await self.clients.matchAll();
+        clients.forEach((client) => {
+          client.postMessage({ type: "REDIRECTED_TO_ROOT" });
+        });
+
         return fetch(getRootUrl()); // Fallback to network
       })
     );
