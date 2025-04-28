@@ -38,6 +38,15 @@
           const basePath = new URL(document.baseURI).pathname;
           const swPath = `${basePath}sw.js`;
 
+          // Listen for messages from the service worker
+          navigator.serviceWorker.addEventListener("message", (event) => {
+            if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
+              console.log("Redirected to root URL by service worker");
+              // Update the SPA's internal state
+              window.location.href = "/"; // Redirect to the root URL
+            }
+          });
+
           // Register the service worker with the correct scope
           const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
@@ -47,15 +56,6 @@
             const basePath = document.querySelector("base")?.href || "/";
             registration.active.postMessage({ type: "SET_BASE_PATH", basePath });
 
-            // Listen for messages from the service worker
-            navigator.serviceWorker.addEventListener("message", (event) => {
-              if (event.data && event.data.type === "REDIRECTED_TO_ROOT") {
-                console.log("Redirected to root URL by service worker");
-                // Update the SPA's internal state
-                window.location.href = "/"; // Redirect to the root URL
-              }
-            });
-            
           });
           
           console.log("Service worker registered successfully at:", swPath);
