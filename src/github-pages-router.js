@@ -133,7 +133,7 @@
   class GHPRoute extends HTMLElement {
     router = undefined;
 
-    connectedCallback() {
+    async connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
 
@@ -161,9 +161,9 @@
 
       // Wait for the service worker to be ready before sending ADD_ROUTE
 
-      serviceWorkerReady.then(() => {
+      await serviceWorkerReady.then(() => {
         if (navigator.serviceWorker.controller) {
-          console.log("Inside serviceWorkerReady promise",navigator.serviceWorker)
+          console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
