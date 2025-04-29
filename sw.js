@@ -41,7 +41,7 @@ self.addEventListener("activate", (event) => {
           }),
         );
       })
-      .then(() => loadRouteMap()), // Load routeMap from cache
+      .finally(() => loadRouteMap()), // Load routeMap from cache
   );
 
   event.waitUntil(self.clients.claim());
@@ -54,7 +54,7 @@ self.addEventListener("message", (event) => {
     if (originatingClient) {
       const lastEntry = hist.at(-1); // Get the last valid history entry
 
-      if(!lastEntry) return;
+      if (!lastEntry) return;
       const data = {
         type: "PREV_PAGE",
         page: lastEntry.url,
