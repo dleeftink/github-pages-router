@@ -1,5 +1,5 @@
-const CACHE_NAME = "github-pages-cache-v6";
-const ROUTE_MAP_KEY = "route-map-v3";
+const CACHE_NAME = "github-pages-cache-v1";
+const ROUTE_MAP_KEY = "route-map-v1";
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
@@ -129,12 +129,12 @@ self.addEventListener("fetch", (event) => {
 
   /* FetchEvent Debugging */
   event.waitUntil(
-    self.clients.matchAll().then((clients) => {
-      if (clients.length === 0) {
-        console.log('No active clients to send messages to.');
+    self.clients.get(event.clientId).then((originatingClient) => {
+      if (!originatingClient) {
+        console.log('No originating client found to send debug messages.');
         return;
       }
-  
+
       // Extract serializable fields from the FetchEvent
       const debugInfo = {
         type: "TEST_EVENT",
@@ -148,20 +148,18 @@ self.addEventListener("fetch", (event) => {
         integrity: event.request.integrity,
         isReload: event.isReload,
         headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-        routeMap:JSON.stringify([...routeMap.entries()])
+        routeMap: JSON.stringify([...routeMap.entries()]),
       };
-  
-      // Send the debug information to each client
-      clients.forEach((client) => {
-        try {
-          client.postMessage(debugInfo);
-          console.log(`Debug info sent to client: ${client.id}`);
-        } catch (error) {
-          console.error(`Failed to send debug info to client ${client.id}:`, error);
-        }
-      });
+
+      // Send the debug information to the originating client
+      try {
+        originatingClient.postMessage(debugInfo);
+        console.log(`Debug info sent to originating client: ${originatingClient.id}`,originatingClient);
+      } catch (error) {
+        console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
+      }
     }).catch((error) => {
-      console.error('Error retrieving clients:', error);
+      console.error('Error retrieving originating client:', error);
     })
   );
 
