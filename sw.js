@@ -88,7 +88,7 @@ self.addEventListener("message", (event) => {
     }
   }
   
-  if (event.data && event.data.type === "INIT_BASE_PATH") {
+  if (event.data && event.data.type === "INIT_BASE_PATHXXX") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
     console.log("Updated base path to", basePath, event);
 
@@ -204,9 +204,8 @@ self.addEventListener("fetch", (event) => {
 	    }*/
         // Send the debug information to the originating client
         try {
-		  
           originatingClient.postMessage(debugInfo);
-          console.log(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
+          console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
         } catch (error) {
           console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
         }
@@ -221,7 +220,7 @@ self.addEventListener("fetch", (event) => {
 
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || event.request.destination === "document") {
+  /*if (event.request.mode === "navigate" || event.request.destination === "document") {
     event.respondWith(
       caches.match(getRootUrl())/*.then(async (cachedResponse) => {
         if (cachedResponse) {
@@ -233,10 +232,10 @@ self.addEventListener("fetch", (event) => {
         }
         return fetch(event.request);
       }),*/
-    );
+    /*);
   }
   // Handle other requests based on the routeMap
-  else if (routeMap.has(url.pathname)) {
+  else*/ if (routeMap.has(url.pathname)) {
 	  
 	//    const previousUrl = event.request.referrer;
   
@@ -260,12 +259,53 @@ self.addEventListener("fetch", (event) => {
   }
   // Default behavior: try cache first, then network
   else {
+	
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(event.request);
+        // request the non-cached resource
+        return fetch(event.request).then(response => {
+	    
+          // fetch request returned 404, serve custom 404 page
+          if (response.status === 404) {
+            return caches.match(getRootUrl())/*.then((custom404Response) => {
+        
+                // Create a new response with custom headers
+                const headers = new Headers(custom404Response.headers);
+                headers.append('X-Custom-Metadata', JSON.stringify({
+                  error: "404",
+                  message: "Resource not found",
+                  url: event.request.url//,
+				  //prev: hist.at(-1)
+                }));
+		    
+                return new Response(custom404Response.body, {
+                  status: 404,
+                  headers: headers,
+                });
+              
+            });*/
+          }
+		  return response;
+        }).finally(()=>{
+			
+			self.clients
+              .get(event.clientId)
+              .then((originatingClient) => {
+                if (!originatingClient) {
+                  console.log("No originating client found to send NEEDS_REDIRECT.");
+                  return;
+                }
+	          
+                 originatingClient.postMessage({
+                    type: "NEEDS_REDIRECT",
+                    data: { from: event.request.url },
+                  });
+              })
+			
+		});
       }),
     );
   }
