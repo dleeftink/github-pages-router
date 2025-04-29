@@ -9,21 +9,23 @@
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       drop(new Error("Route already defined"));
 	  
-	  // navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
+	  navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
   
-  function setupMessageListener() {			  
+  function setupMessageListener(context) {			  
     navigator.serviceWorker.addEventListener('message', (event) => {
-      console.log("Message data received",event.data)
+      console.log("General event listener received",event.data)
 	  if (event.data && event.data.type === "PREV_PAGE") { 
 	    console.log("Received PREV_PAGE message from service worker",event.data)
+		context.contentElement.innerHTML = event.data.content;
+		setTimeout(()=>handleRedirect(),0);
 	  }
       if (event.data && event.data.type === "NEEDS_REDIRECT") {
         console.warn("Received NEEDS_REDIRECT message from service worker", event.data);
-        setTimeout(()=>handleRedirect(),1000);
+        setTimeout(()=>handleRedirect(),0);
       }
     });
 	console.log("ServiceWorker Listeners activated");
@@ -56,12 +58,6 @@
       // Register the service worker
       await this.registerServiceWorker();
 	  
-	  /*let prevContent = sessionStorage.getItem("prev");
-	  if(prevContent) {
-		this.contentElement.innerHTML = prevContent;
-     	console.log("Coming from",prevContent);
-	  }*/
-	  
 	  // Wait for all routes to register before sending INIT_BASE_PATH
       this.allRoutesRegistered.then(() => {
         navigator.serviceWorker.ready.then((registration) => {
@@ -78,6 +74,7 @@
         try {
           // Use document.baseURI to determine the base path
           const basePath = new URL(document.baseURI).pathname;
+		  const context = this;
           const swPath = `${basePath}sw.js`;
 
           // Register the service worker with the correct scope
@@ -89,7 +86,7 @@
               console.log("Service Worker registered with scope:", registration.scope);
               // Check if there's an active service worker and setup listeners
               if (registration.active) {
-                setupMessageListener();
+                setupMessageListener(context);
               }
            
             })
@@ -99,7 +96,6 @@
 
           // Initialise the basePath to signal a client connection
           // Only available after installation 
-		  // => How to await 
           /*navigator.serviceWorker.ready.then((registration) => {
             const basePath = document.querySelector("base")?.href || "/";
             registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
@@ -140,7 +136,6 @@
       history.pushState({ prevUrl: window.location.href, prevTitle: (this.contentElement.querySelector('h2')?.textContent ?? ''), prevContent }, "", href);
 	  this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
-      // sessionStorage.setItem("prev",this.contentElement.innerHTML);
     }
 
     async viewTransition(url) {
@@ -164,8 +159,6 @@
         contentElement.innerHTML = text;
 		if(window.history?.state) {
 		  document.title = `From ${window.history.state.prevTitle} to ${(contentElement.querySelector('h2')?.textContent ?? '')}`;
-		  
-     	  // console.log("Prev content",window.history?.state?.prevContent);
 		} else {
 		  document.title = (contentElement.querySelector('h2')?.textContent ?? '')
 		}
