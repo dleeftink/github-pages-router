@@ -36,7 +36,12 @@
   class GHPRouter extends HTMLElement {
     /** DOM Element that wraps the content, defaults to <main> tag. */
     contentElement = undefined;
-    navlinks = new Set(); // Tracks all <ghp-navlink> components
+    navlinks = new Set(); // Tracks all <ghp-navlink> 
+	
+	routeRegistrationTracker = new Set(); // Tracks unregistered <ghp-route> elements
+    allRoutesRegistered = new Promise((resolve) => {
+      this.resolveAllRoutesRegistered = resolve; // Resolve when all routes are registered
+    });
 
     async connectedCallback() {
       addEventListener("popstate", this);
@@ -45,6 +50,15 @@
 
       // Register the service worker
       await this.registerServiceWorker();
+	  
+	  // Wait for all routes to register before sending INIT_BASE_PATH
+      this.allRoutesRegistered.then(() => {
+        navigator.serviceWorker.ready.then((registration) => {
+          const basePath = document.querySelector("base")?.href || "/";
+          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+          console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+        });
+      });
 
     }
 
@@ -74,11 +88,11 @@
 
           // Initialise the basePath to signal a client connection
           // Only available after installation 
-          navigator.serviceWorker.ready.then((registration) => {
+		  // => How to await 
+          /*navigator.serviceWorker.ready.then((registration) => {
             const basePath = document.querySelector("base")?.href || "/";
             registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
-
-          });
+          });*/
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
@@ -86,6 +100,13 @@
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
+      }
+    }
+	
+	notifyRouteRegistered(route) {
+      this.routeRegistrationTracker.delete(route); // Remove route from tracker
+      if (this.routeRegistrationTracker.size === 0) {
+        this.resolveAllRoutesRegistered(); // Resolve the promise when all routes are registered
       }
     }
 
@@ -168,35 +189,42 @@
    */
   class GHPRoute extends HTMLElement {
     router = undefined;
-
-    async connectedCallback() {
+  
+    connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
-
+  
       const href = this.getAttribute("href");
       const content = this.getAttribute("content");
-
+  
       if (!href || !content) {
         console.error("Missing href or content attribute");
         return;
       }
-
-      // Register route
+  
+      // Register route with the service worker
       serviceWorkerReady.then(() => {
-        console.log("Adding GHPRoute inside serviceWorkerReady promise", navigator.serviceWorker)
         navigator.serviceWorker.controller.postMessage({
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
-        })
-      }).catch(err=> { 
-	    console.warn(err.message,href,content);
-	  });
+        });
+  
 
-      // If the current location matches the route, trigger a view transition
-      if (new URL(href, document.baseURI).toString() === location.toString()) {
-        this.router.viewTransition(new URL(content, document.baseURI).toString());
-      }
+      }).catch(err => {
+        console.warn(err.message, href, content);
+      }).finally(() => {
+        // Notify the router that this route has been registered
+        this.router.notifyRouteRegistered(this);
+  
+        // Trigger view transition if the current location matches the route
+        if (new URL(href, document.baseURI).toString() === location.toString()) {
+          this.router.viewTransition(new URL(content, document.baseURI).toString());
+        }
+	  })
+  
+      // Track this route in the router's registration tracker
+      this.router.routeRegistrationTracker.add(this);
     }
   }
 
