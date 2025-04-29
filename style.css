@@ -4,6 +4,10 @@
   navigation: auto; 
 }*/
 
+@view-transition {
+  navigation: auto;
+}
+
 @layer anim {
 
   main {
