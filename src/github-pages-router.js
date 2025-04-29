@@ -8,6 +8,8 @@
   const serviceWorkerReady = new Promise((keep,drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       drop(new Error("Route already defined"));
+	  
+	  // navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
@@ -16,9 +18,12 @@
   function setupMessageListener() {			  
     navigator.serviceWorker.addEventListener('message', (event) => {
       console.log("Message data received",event.data)
+	  if (event.data && event.data.type === "PREV_PAGE") { 
+	    console.log("Received PREV_PAGE message from service worker",event.data)
+	  }
       if (event.data && event.data.type === "NEEDS_REDIRECT") {
         console.warn("Received NEEDS_REDIRECT message from service worker", event.data);
-        setTimeout(()=>handleRedirect(),0);
+        setTimeout(()=>handleRedirect(),1000);
       }
     });
 	console.log("ServiceWorker Listeners activated");
@@ -51,11 +56,17 @@
       // Register the service worker
       await this.registerServiceWorker();
 	  
+	  /*let prevContent = sessionStorage.getItem("prev");
+	  if(prevContent) {
+		this.contentElement.innerHTML = prevContent;
+     	console.log("Coming from",prevContent);
+	  }*/
+	  
 	  // Wait for all routes to register before sending INIT_BASE_PATH
       this.allRoutesRegistered.then(() => {
         navigator.serviceWorker.ready.then((registration) => {
           const basePath = document.querySelector("base")?.href || "/";
-          setTimeout(()=>registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }),500);
+          setTimeout(()=>registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }),0); // Should await serviceWorker instead of setTimeout;
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
         });
       });
@@ -125,9 +136,11 @@
       event.preventDefault();
       const { href } = event.target;
       if (href === document.location.toString()) return;
-      history.pushState({}, "", href);
-      this.viewTransition(href);
+	  const prevContent =  [...(window.history?.state?.prevContent ?? []), this.contentElement.innerHTML];
+      history.pushState({ prevUrl: window.location.href, prevTitle: (this.contentElement.querySelector('h2')?.textContent ?? ''), prevContent }, "", href);
+	  this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
+      // sessionStorage.setItem("prev",this.contentElement.innerHTML);
     }
 
     async viewTransition(url) {
@@ -149,6 +162,13 @@
         if (!response.ok) throw new Error(`Failed to load content from ${url}`);
         const text = await response.text();
         contentElement.innerHTML = text;
+		if(window.history?.state) {
+		  document.title = `From ${window.history.state.prevTitle} to ${(contentElement.querySelector('h2')?.textContent ?? '')}`;
+		  
+     	  // console.log("Prev content",window.history?.state?.prevContent);
+		} else {
+		  document.title = (contentElement.querySelector('h2')?.textContent ?? '')
+		}
       } catch (error) {
         console.error(error);
       }
