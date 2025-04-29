@@ -122,6 +122,7 @@
       const { contentElement } = this;
       if (!contentElement) return;
 
+      // No fallback for GHPRoute as this is handled by the ServiceWorker
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to load content from ${url}`);
