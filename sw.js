@@ -54,6 +54,7 @@ self.addEventListener("message", (event) => {
     if (originatingClient) {
       const lastEntry = hist.at(-1); // Get the last valid history entry
 
+      if(!lastEntry) return;
       const data = {
         type: "PREV_PAGE",
         page: lastEntry.url,
