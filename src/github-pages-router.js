@@ -55,7 +55,7 @@
       this.allRoutesRegistered.then(() => {
         navigator.serviceWorker.ready.then((registration) => {
           const basePath = document.querySelector("base")?.href || "/";
-          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+          setTimeout(()=>registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }),500);
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
         });
       });
@@ -209,8 +209,7 @@
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
         });
-  
-
+ 
       }).catch(err => {
         console.warn(err.message, href, content);
       }).finally(() => {
