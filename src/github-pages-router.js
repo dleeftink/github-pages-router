@@ -7,12 +7,29 @@
   // Global service worker readiness tracker
   const serviceWorkerReady = new Promise((keep,drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      drop(new Error("Routes already defined"));
+      drop(new Error("Route already defined"));
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
-
+  
+  function setupMessageListener() {			  
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      console.log("Message data received",event.data)
+      if (event.data && event.data.type === "NEEDS_REDIRECT") {
+        console.warn("Received NEEDS_REDIRECT message from service worker", event.data);
+        setTimeout(()=>handleRedirect(),0);
+      }
+    });
+	console.log("ServiceWorker Listeners activated");
+  }
+  
+  // Navigate to first navigation route;
+  function handleRedirect() {
+    console.log("Redirected to root URL by service worker");
+    document.querySelector('ghp-navlink').anchor.click();
+  }
+  
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -45,51 +62,21 @@
             .register(swPath, { scope: basePath })
             .then((registration) => {
               console.log("Service Worker registered with scope:", registration.scope);
-
-              // Check if there's an active service worker
+              // Check if there's an active service worker and setup listeners
               if (registration.active) {
                 setupMessageListener();
-              } else {
-                // Wait for the service worker to become active
-                registration.onupdatefound = () => {
-                  const installingWorker = registration.installing;
-                  if (installingWorker) {
-                    installingWorker.onstatechange = () => {
-                      if (installingWorker.state === 'activated') {
-                        setupMessageListener();
-                      }
-                    };
-                  }
-                };
               }
-
-              function setupMessageListener() {
-                navigator.serviceWorker.addEventListener('message', (event) => {
-                  console.log("Message data received",event.data)
-                  if (event.data && event.data.type === "NEEDS_REDIRECT" && event.data.data.url.endsWith('github-pages-router.js')) {
-                    console.log("Received NEEDS_REDIRECT message from service worker", event.data);
-                    handlRedirect();
-                  }
-                });
-              }
+           
             })
             .catch((error) => {
               console.error("Service Worker registration failed:", error);
             });
 
-          function handlRedirect() {
-            console.log("Redirected to root URL by service worker");
-            let url = self.location.href;
-            // Update the SPA's internal state
-            window.location.href = url.substring(0, url.lastIndexOf('/') + 1);; // Redirect to the root URL
-
-          }
-
-          // Relay the basePath just in case
+          // Initialise the basePath to signal a client connection
           // Only available after installation 
           navigator.serviceWorker.ready.then((registration) => {
             const basePath = document.querySelector("base")?.href || "/";
-            registration.active.postMessage({ type: "SET_BASE_PATH", basePath });
+            registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
 
           });
 
@@ -193,16 +180,17 @@
         return;
       }
 
+      // Register route
       serviceWorkerReady.then(() => {
-        //if (navigator.serviceWorker.controller) {
-        console.log("Inside serviceWorkerReady promise", navigator.serviceWorker)
+        console.log("Adding GHPRoute inside serviceWorkerReady promise", navigator.serviceWorker)
         navigator.serviceWorker.controller.postMessage({
           type: "ADD_ROUTE",
           href: new URL(href, document.baseURI).pathname,
           content: new URL(content, document.baseURI).toString(),
         })
-        //}
-      }).catch(err=> console.warn(err.message,href,content));
+      }).catch(err=> { 
+	    console.warn(err.message,href,content);
+	  });
 
       // If the current location matches the route, trigger a view transition
       if (new URL(href, document.baseURI).toString() === location.toString()) {

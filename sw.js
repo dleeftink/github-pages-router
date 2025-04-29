@@ -43,9 +43,32 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SET_BASE_PATH") {
+  if (event.data && event.data.type === "INIT_BASE_PATH") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log("Updated base path to", basePath);
+    console.log("Updated base path to", basePath, event);
+
+    // Send redirect event
+    const clientUrl = new URL(event.source.url).pathname;
+    if (!routeMap.has(clientUrl)) {
+      console.warn("Accessing non-existing route");
+
+      // Ensure we only send the NEEDS_REDIRECT message to the originating client
+      const originatingClient = event.source;
+
+      if (originatingClient) {
+        try {
+          originatingClient.postMessage({
+            type: "NEEDS_REDIRECT",
+            data: { from: event.source.url },
+          });
+          console.log(`Sent NEEDS_REDIRECT message to originating client: ${originatingClient.id}`);
+        } catch (error) {
+          console.error(`Failed to send NEEDS_REDIRECT message to originating client:`, error);
+        }
+      } else {
+        console.log("No originating client found to send NEEDS_REDIRECT message.");
+      }
+    }
   }
 });
 
@@ -104,31 +127,6 @@ self.addEventListener("message", async (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Check if the request is a navigation request
-  /*if (event.request.mode === "navigate" || event.request.destination === "document") {
-    const rootUrl = getRootUrl();
-    event.respondWith(
-      caches.match(rootUrl).then(async (cachedResponse) => {
-        if (cachedResponse) {
-          console.log("Serving root URL from cache:", rootUrl);
-
-          // Notify all clients about the redirection
-          const clients = await self.clients.matchAll({ type: "window" });
-          clients.forEach((client) => {
-            if (client.url !== rootUrl) {
-              console.log("Redirecting client to root URL:", rootUrl);
-              client.navigate(rootUrl); // Redirect the client to the root URL
-            }
-          });
-
-          return cachedResponse; // Serve the cached root location
-        }
-        console.log("Fetching root URL from network:", rootUrl);
-        return fetch(rootUrl); // Fallback to network
-      })
-    );
-  }*/
-
   /* FetchEvent Debugging */
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
@@ -167,58 +165,12 @@ self.addEventListener("fetch", (event) => {
     })
   );
 
-  // Send redirect event
-  if (
-    event.request && event.request.referrer &&
-    !routeMap.has(new URL(event.request.referrer).pathname) /*&& // Referrer is not in the routeMap
-    event.request.url.endsWith('github-pages-router.js') */// URL ends with 'github-pages-router.js'
-  ) {
-    event.waitUntil(
-      self.clients.matchAll().then((clients) => {
-        if (clients.length === 0) {
-          console.log('No active clients to send messages to.');
-          return;
-        }
-        clients.forEach((client) => {
-          try {
-            client.postMessage({ type: "NEEDS_REDIRECT", data: {from:event.request.referrer,url: event.request.url} }); // Send the message to the client
-            console.log(`Sent NEEDS_REDIRECT message to client: ${client.id}`);
-          } catch (error) {
-            console.error(`Failed to send NEEDS_REDIRECT message to client ${client.id}:`, error);
-          }
-        });
-      })
-    );
-  }
 
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
-
     event.respondWith(
-      caches.match(getRootUrl()).then(async (cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse; // Serve the cached root location
-        }
-
-
-        // Notify all clients about the redirection
-        /*const clients = await self.clients.matchAll();
-        clients.forEach((client) => {
-          client.postMessage({ type: "REDIRECTED_TO_ROOT" });
-        });*/
-
-        // Notify only the client that initiated the request
-        /*const clientId = event.clientId;
-        if (clientId) {
-          const client = await self.clients.get(clientId);
-          if (client) {
-            client.postMessage({ type: "REDIRECTED_TO_ROOT" });
-          }
-        }*/
-
-        return fetch(getRootUrl()); // Fallback to network
-      })
+      caches.match(getRootUrl())
     );
   }
   // Handle other requests based on the routeMap
@@ -226,6 +178,7 @@ self.addEventListener("fetch", (event) => {
     const contentPath = routeMap.get(url.pathname);
     event.respondWith(
       caches.match(contentPath).then((cachedResponse) => {
+		console.warn("CACHE HIT AT",contentPath)
         if (cachedResponse) {
           return cachedResponse; // Serve from cache
         }
