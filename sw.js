@@ -6,6 +6,16 @@ let basePath = "/"; // Default base path
 
 let hist = [];
 
+
+// Define the assets to cache
+const assets = [
+   getRootUrl(),
+   getRootUrl() + "style.css", // Local stylesheet
+  "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
+];
+
+// console.log( "CHECK THIS",getRootUrl() + "style.css")
 // Helper function to determine the root folder URL
 function getRootUrl() {
   // Doesn't listen for basePath => isn't defined during installation..
@@ -18,8 +28,7 @@ self.addEventListener("install", (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      const rootUrl = getRootUrl(); // Dynamically determine the root location
-      return cache.add(rootUrl); // Cache the root location
+      return cache.addAll(assets);
     }),
   );
 
