@@ -1,14 +1,23 @@
 const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
+const DEBUG = false;
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
 
-let hist = [];
+let hist = [{ url: getRootUrl(), content: "<p>preseeded</p>" }];
+
+// Define the assets to cache
+const assets = [
+   getRootUrl(),
+   getRootUrl() + "style.css", // Local stylesheet
+  "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
+];
 
 // Helper function to determine the root folder URL
 function getRootUrl() {
-  // Doesn't listen for basePath => isn't defined during installation..
+  // Don't listen for basePath => isn't defined during installation..
   let url = self.location.href;
   return url.substring(0, url.lastIndexOf("/") + 1);
 }
@@ -18,8 +27,7 @@ self.addEventListener("install", (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      const rootUrl = getRootUrl(); // Dynamically determine the root location
-      return cache.add(rootUrl); // Cache the root location
+      return cache.addAll(assets);
     }),
   );
 
@@ -54,7 +62,7 @@ self.addEventListener("message", (event) => {
     if (originatingClient) {
       const lastEntry = hist.at(-1); // Get the last valid history entry
 
-      if(!lastEntry) return;
+      if (!lastEntry) return;
       const data = {
         type: "PREV_PAGE",
         page: lastEntry.url,
@@ -152,43 +160,45 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   /* FetchEvent Debugging */
-  event.waitUntil(
-    self.clients
-      .get(event.clientId)
-      .then((originatingClient) => {
-        if (!originatingClient) {
-          console.log("No originating client found to send debug messages.");
-          return;
-        }
-
-        // Extract serializable fields from the FetchEvent
-        const debugInfo = {
-          type: "TEST_EVENT",
-          url: event.request.url,
-          method: event.request.method,
-          mode: event.request.mode,
-          referrer: event.request.referrer,
-          destination: event.request.destination,
-          credentials: event.request.credentials,
-          redirect: event.request.redirect,
-          integrity: event.request.integrity,
-          isReload: event.isReload,
-          headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-          routeMap: JSON.stringify([...routeMap.entries()]),
-        };
-
-        // Send the debug information to the originating client
-        try {
-          originatingClient.postMessage(debugInfo);
-          console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
-        } catch (error) {
-          console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
-        }
-      })
-      .catch((error) => {
-        console.error("Error retrieving originating client:", error);
-      }),
-  );
+  if(DEBUG) {
+    event.waitUntil(
+      self.clients
+        .get(event.clientId)
+        .then((originatingClient) => {
+          if (!originatingClient) {
+            console.log("No originating client found to send debug messages.");
+            return;
+          }
+    
+          // Extract serializable fields from the FetchEvent
+          const debugInfo = {
+            type: "TEST_EVENT",
+            url: event.request.url,
+            method: event.request.method,
+            mode: event.request.mode,
+            referrer: event.request.referrer,
+            destination: event.request.destination,
+            credentials: event.request.credentials,
+            redirect: event.request.redirect,
+            integrity: event.request.integrity,
+            isReload: event.isReload,
+            headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+            routeMap: JSON.stringify([...routeMap.entries()]),
+          };
+    
+          // Send the debug information to the originating client
+          try {
+            originatingClient.postMessage(debugInfo);
+            console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
+          } catch (error) {
+            console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error retrieving originating client:", error);
+        }),
+    );
+  }
 
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
