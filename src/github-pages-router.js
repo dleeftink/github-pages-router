@@ -33,11 +33,6 @@
       if (!this.contentElement) console.error("Cannot find contentElement");
 
       console.log("Routed from", document.referrer);
-      /*let prevContent = sessionStorage.getItem("LAST_CONTENT");
-      if(prevContent) {
-		console.log("Initialised with");
-		this.contentElement.innerHTML = prevContent;
-	  }*/
       // Register the service worker
       await this.registerServiceWorker();
 
@@ -46,16 +41,15 @@
         navigator.serviceWorker.ready.then((registration) => {
           const basePath = document.querySelector("base")?.href || "/";
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
-          //setTimeout(() => 
-		    registration.active.postMessage({ type: "INIT_BASE_PATH", basePath })
-		  //, 0); // Should await serviceWorker instead of setTimeout;
-		  
-		  if(document.referrer) {
-		    this.viewTransition(document.referrer)
-	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
+          //setTimeout(() =>
+          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+          //, 0); // Should await serviceWorker instead of setTimeout;
+
+          if (document.referrer) {
+            this.viewTransition(document.referrer);
+          } else if (new URL("/", document.baseURI).toString() === location.toString()) {
             this.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
           }
-		  
         });
       });
 
@@ -114,6 +108,7 @@
       this.routeRegistrationTracker.delete(route); // Remove route from tracker
       if (this.routeRegistrationTracker.size === 0) {
         this.resolveAllRoutesRegistered(); // Resolve the promise when all routes are registered
+        console.log("All routes registered");
       }
     }
 
@@ -222,6 +217,7 @@
       // Register route with the service worker
       serviceWorkerReady
         .then(() => {
+          console.log("Registering route", href);
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
@@ -236,7 +232,7 @@
           this.router.notifyRouteRegistered(this);
 
           // Trigger view transition if the current location matches the route
-		  /*if(document.referrer) {
+          /*if(document.referrer) {
 		    setTimeout(()=>this.router.viewTransition(document.referrer),1000)
 	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
             this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
