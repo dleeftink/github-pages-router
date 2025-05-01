@@ -8,7 +8,6 @@
   const serviceWorkerReady = new Promise((keep, drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       drop(new Error("Route already defined"));
-
       navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
@@ -46,8 +45,17 @@
       this.allRoutesRegistered.then(() => {
         navigator.serviceWorker.ready.then((registration) => {
           const basePath = document.querySelector("base")?.href || "/";
-          setTimeout(() => registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }), 0); // Should await serviceWorker instead of setTimeout;
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+          //setTimeout(() => 
+		    registration.active.postMessage({ type: "INIT_BASE_PATH", basePath })
+		  //, 0); // Should await serviceWorker instead of setTimeout;
+		  
+		  if(document.referrer) {
+		    this.viewTransition(document.referrer)
+	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
+            this.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
+          }
+		  
         });
       });
 
@@ -228,11 +236,11 @@
           this.router.notifyRouteRegistered(this);
 
           // Trigger view transition if the current location matches the route
-		  if(document.referrer) {
+		  /*if(document.referrer) {
 		    setTimeout(()=>this.router.viewTransition(document.referrer),1000)
 	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
             this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
-          }
+          }*/
         });
 
       // Track this route in the router's registration tracker
