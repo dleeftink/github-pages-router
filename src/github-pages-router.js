@@ -15,28 +15,6 @@
     }
   });
   
-  function setupMessageListener(context) {			  
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      console.log("General event listener received",event.data)
-	  if (event.data && event.data.type === "PREV_PAGE") { 
-	    console.log("Received PREV_PAGE message from service worker",event.data)
-		context.contentElement.innerHTML = event.data.content;
-		setTimeout(()=>handleRedirect(),0);
-	  }
-      if (event.data && event.data.type === "NEEDS_REDIRECT") {
-        console.warn("Received NEEDS_REDIRECT message from service worker", event.data);
-        setTimeout(()=>handleRedirect(),0);
-      }
-    });
-	console.log("ServiceWorker Listeners activated");
-  }
-  
-  // Navigate to first navigation route;
-  function handleRedirect() {
-    console.log("Redirected to root URL by service worker");
-    document.querySelector('ghp-navlink').anchor.click();
-  }
-  
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -85,21 +63,14 @@
             .then((registration) => {
               console.log("Service Worker registered with scope:", registration.scope);
               // Check if there's an active service worker and setup listeners
-              if (registration.active) {
+              /*if (registration.active) {
                 setupMessageListener(context);
-              }
+              }*/
            
             })
             .catch((error) => {
               console.error("Service Worker registration failed:", error);
             });
-
-          // Initialise the basePath to signal a client connection
-          // Only available after installation 
-          /*navigator.serviceWorker.ready.then((registration) => {
-            const basePath = document.querySelector("base")?.href || "/";
-            registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
-          });*/
 
           console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
