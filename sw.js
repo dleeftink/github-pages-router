@@ -1,6 +1,6 @@
 const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
-const DEBUG = false ;
+const DEBUG = false;
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
@@ -236,34 +236,27 @@ self.addEventListener("fetch", (event) => {
 
     // Respond with the custom response
     event.respondWith(customResponse);*/
-    
-	event.respondWith(
+
+    event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         if (!client) {
           console.log("No originating client found to send debug messages.");
           return caches.match(getRootUrl());
         }
-        const isFromClient = new URL(client.url).origin === url.origin;
-        //if (isFromClient) {
-		  if (routeMap.has(url.pathname)) {
-			  
-	      client.postMessage({
-            type: "STORE_LAST_CONTENT",
+        // const isFromClient = new URL(client.url).origin === url.origin;
+
+        if (routeMap.has(url.pathname)) {
+          client.postMessage({
+            type: "NAVIGATE_TO",
+            href: url.pathname,
           });
-		  return caches.match(getRootUrl());
-		} else { 
-		    return new Response(null, {
-              status: 204, // No Content
-              statusText: "Navigation prevented",
-            });
-		  }
-        //} else {
-        //  return caches.match(getRootUrl());
-        //}
+        }
+        return new Response(null, {
+          status: 204, // No Content
+          statusText: "Navigation prevented",
+        });
       }),
     );
-   
-	
   } else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname);
 
@@ -291,7 +284,7 @@ self.addEventListener("fetch", (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(event.request)/*.then(response=>{
+        return fetch(event.request); /*.then(response=>{
 			if(!response) {
 				return new Response(null, {
               status: 204, // No Content

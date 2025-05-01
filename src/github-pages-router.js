@@ -5,25 +5,25 @@
   }
 
   // Global service worker readiness tracker
-  const serviceWorkerReady = new Promise((keep,drop) => {
+  const serviceWorkerReady = new Promise((keep, drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       drop(new Error("Route already defined"));
-	  
-	  navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
+
+      navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
-  
+
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
   class GHPRouter extends HTMLElement {
     /** DOM Element that wraps the content, defaults to <main> tag. */
     contentElement = undefined;
-    navlinks = new Set(); // Tracks all <ghp-navlink> 
-	
-	routeRegistrationTracker = new Set(); // Tracks unregistered <ghp-route> elements
+    navlinks = new Set(); // Tracks all <ghp-navlink>
+
+    routeRegistrationTracker = new Set(); // Tracks unregistered <ghp-route> elements
     allRoutesRegistered = new Promise((resolve) => {
       this.resolveAllRoutesRegistered = resolve; // Resolve when all routes are registered
     });
@@ -33,25 +33,24 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
 
-      let prevContent = sessionStorage.getItem("LAST_CONTENT");
+      /*let prevContent = sessionStorage.getItem("LAST_CONTENT");
       if(prevContent) {
 		console.log("Initialised with");
 		this.contentElement.innerHTML = prevContent;
-	  }
+	  }*/
       // Register the service worker
       await this.registerServiceWorker();
-	  
-	  // Wait for all routes to register before sending INIT_BASE_PATH
+
+      // Wait for all routes to register before sending INIT_BASE_PATH
       this.allRoutesRegistered.then(() => {
         navigator.serviceWorker.ready.then((registration) => {
           const basePath = document.querySelector("base")?.href || "/";
-          setTimeout(()=>registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }),0); // Should await serviceWorker instead of setTimeout;
+          setTimeout(() => registration.active.postMessage({ type: "INIT_BASE_PATH", basePath }), 0); // Should await serviceWorker instead of setTimeout;
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
         });
       });
-	  
-      // setTimeout(()=>this.navigateTo('./usage'),1000);
 
+      // setTimeout(()=>this.navigateTo('./usage'),1000);
     }
 
     async registerServiceWorker() {
@@ -59,7 +58,7 @@
         try {
           // Use document.baseURI to determine the base path
           const basePath = new URL(document.baseURI).pathname;
-		  const context = this;
+          const context = this;
           const swPath = `${basePath}sw.js`;
 
           // Register the service worker with the correct scope
@@ -71,9 +70,8 @@
               console.log("Service Worker registered with scope:", registration.scope);
               // Check if there's an active service worker and setup listeners
               //if (registration.active) {
-                context.setupMessageListener(context);
+              context.setupMessageListener(context);
               //}
-           
             })
             .catch((error) => {
               console.error("Service Worker registration failed:", error);
@@ -87,24 +85,23 @@
         console.warn("Service workers are not supported in this browser.");
       }
     }
-	
-    setupMessageListener(context) {			  
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        console.log("General event listener received",event.data)
-  	    if (event.data.type === "STORE_LAST_CONTENT") { 
+
+    setupMessageListener(context) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        console.log("General event listener received", event.data);
+        /*if (event.data.type === "STORE_LAST_CONTENT") { 
   	      console.log("Received STORE_LAST message from service worker with",event.data)
 		  sessionStorage.setItem('LAST_CONTENT',this.contentElement.innerHTML);
-  	    }
-		/*if (event.data.type === "NAVIGATE_TO") { 
-  	      console.log("Received NAVIGATE_TO message from service worker with",event.data)
-		  this.navigateTo(event.data.href);
   	    }*/
-       });
-  	  console.log("ServiceWorker Listeners activated");
+        if (event.data.type === "NAVIGATE_TO") {
+          console.log("Received NAVIGATE_TO message from service worker with", event.data);
+          this.navigateTo(event.data.href);
+        }
+      });
+      console.log("ServiceWorker Listeners activated");
     }
 
-	
-	notifyRouteRegistered(route) {
+    notifyRouteRegistered(route) {
       this.routeRegistrationTracker.delete(route); // Remove route from tracker
       if (this.routeRegistrationTracker.size === 0) {
         this.resolveAllRoutesRegistered(); // Resolve the promise when all routes are registered
@@ -126,15 +123,15 @@
       event.preventDefault();
       const { href } = event.target;
       if (href === document.location.toString()) return;
-	  const prevContent =  [...(window.history?.state?.prevContent ?? []), this.contentElement.innerHTML];
-      history.pushState({ prevUrl: window.location.href, prevTitle: (this.contentElement.querySelector('h2')?.textContent ?? ''), prevContent }, "", href);
-	  this.viewTransition(href);
+      const prevContent = [...(window.history?.state?.prevContent ?? []), this.contentElement.innerHTML];
+      history.pushState({ prevUrl: window.location.href, prevTitle: this.contentElement.querySelector("h2")?.textContent ?? "", prevContent }, "", href);
+      this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
     }
-	
-	navigateTo(href) {
-      this.navigate({target:{href},preventDefault:()=>console.log("Navigated by app")})
-	}
+
+    navigateTo(href) {
+      this.navigate({ target: { href }, preventDefault: () => console.log("Navigated by app") });
+    }
 
     async viewTransition(url) {
       if (!document.startViewTransition) return await this.updateContent(url);
@@ -155,11 +152,11 @@
         if (!response.ok) throw new Error(`Failed to load content from ${url}`);
         const text = await response.text();
         contentElement.innerHTML = text;
-		if(window.history?.state) {
-		  document.title = `From ${window.history.state.prevTitle} to ${(contentElement.querySelector('h2')?.textContent ?? '')}`;
-		} else {
-		  document.title = (contentElement.querySelector('h2')?.textContent ?? '')
-		}
+        if (window.history?.state) {
+          document.title = `From ${window.history.state.prevTitle} to ${contentElement.querySelector("h2")?.textContent ?? ""}`;
+        } else {
+          document.title = contentElement.querySelector("h2")?.textContent ?? "";
+        }
       } catch (error) {
         console.error(error);
       }
@@ -200,39 +197,41 @@
    */
   class GHPRoute extends HTMLElement {
     router = undefined;
-  
+
     connectedCallback() {
       this.router = findParentRouter(this);
       if (!this.router) return;
-  
+
       const href = this.getAttribute("href");
       const content = this.getAttribute("content");
-  
+
       if (!href || !content) {
         console.error("Missing href or content attribute");
         return;
       }
-  
+
       // Register route with the service worker
-      serviceWorkerReady.then(() => {
-        navigator.serviceWorker.controller.postMessage({
-          type: "ADD_ROUTE",
-          href: new URL(href, document.baseURI).pathname,
-          content: new URL(content, document.baseURI).toString(),
+      serviceWorkerReady
+        .then(() => {
+          navigator.serviceWorker.controller.postMessage({
+            type: "ADD_ROUTE",
+            href: new URL(href, document.baseURI).pathname,
+            content: new URL(content, document.baseURI).toString(),
+          });
+        })
+        .catch((err) => {
+          console.warn(err.message, href, content);
+        })
+        .finally(() => {
+          // Notify the router that this route has been registered
+          this.router.notifyRouteRegistered(this);
+
+          // Trigger view transition if the current location matches the route
+          if (new URL(href, document.baseURI).toString() === location.toString()) {
+            this.router.viewTransition(new URL(content, document.baseURI).toString());
+          }
         });
- 
-      }).catch(err => {
-        console.warn(err.message, href, content);
-      }).finally(() => {
-        // Notify the router that this route has been registered
-        this.router.notifyRouteRegistered(this);
-  
-        // Trigger view transition if the current location matches the route
-        if (new URL(href, document.baseURI).toString() === location.toString()) {
-          this.router.viewTransition(new URL(content, document.baseURI).toString());
-        }
-	  })
-  
+
       // Track this route in the router's registration tracker
       this.router.routeRegistrationTracker.add(this);
     }
