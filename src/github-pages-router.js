@@ -34,25 +34,25 @@
       localStorage.setItem("debugkey-v1", parseInt(localStorage.getItem("debugkey-v1") ?? 0) + 1);
       console.log("Routed from", document.referrer);
 
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
+      // if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
 
       // Register the service worker
       await this.registerServiceWorker();
 
       // setTimeout(()=>this.navigateTo('./usage'),1000);
       this.allRoutesRegistered.then(() => {
-         navigator.serviceWorker.ready.then((registration) => {
-           const basePath = document.querySelector("base")?.href || "/";
-           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
-           registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+        navigator.serviceWorker.ready.then((registration) => {
+          const basePath = document.querySelector("base")?.href || "/";
+          console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
 
-           //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
-           registration.active.postMessage({
-             type: "STORE_MAP",
-           });
-           //}
-         });
-       });
+          //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
+          registration.active.postMessage({
+            type: "STORE_MAP",
+          });
+          //}
+        });
+      });
     }
 
     async registerServiceWorker() {
