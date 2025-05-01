@@ -8,7 +8,6 @@
   const serviceWorkerReady = new Promise((keep, drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       drop(new Error("Route already defined"));
-      navigator.serviceWorker.controller.postMessage({ type: "REQUEST_PREV" });
     } else if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
@@ -33,25 +32,11 @@
       if (!this.contentElement) console.error("Cannot find contentElement");
 
       console.log("Routed from", document.referrer);
+
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
+
       // Register the service worker
-      await this.registerServiceWorker();
-
-      // Wait for all routes to register before sending INIT_BASE_PATH
-      this.allRoutesRegistered.then(() => {
-        navigator.serviceWorker.ready.then((registration) => {
-          const basePath = document.querySelector("base")?.href || "/";
-          console.log("Sent INIT_BASE_PATH message after all routes were registered.");
-          //setTimeout(() =>
-          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
-          //, 0); // Should await serviceWorker instead of setTimeout;
-
-          if (document.referrer) {
-            this.viewTransition(document.referrer);
-          } else if (new URL("/", document.baseURI).toString() === location.toString()) {
-            this.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
-          }
-        });
-      });
+      await this.registerServiceWorker()
 
       // setTimeout(()=>this.navigateTo('./usage'),1000);
     }
@@ -64,23 +49,44 @@
           const context = this;
           const swPath = `${basePath}sw.js`;
 
-          // Register the service worker with the correct scope
-          // const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
+          let registration = await navigator.serviceWorker.getRegistration();
 
-          navigator.serviceWorker
-            .register(swPath, { scope: basePath })
-            .then((registration) => {
-              console.log("Service Worker registered with scope:", registration.scope);
-              // Check if there's an active service worker and setup listeners
-              //if (registration.active) {
-              context.setupMessageListener(context);
-              //}
-            })
-            .catch((error) => {
-              console.error("Service Worker registration failed:", error);
+          if (!registration) {
+            const registration = await navigator.serviceWorker.register(swPath, {
+              scope: basePath,
             });
+            if (registration.installing) {
+              console.log("Service worker installing");
+              // Wait for all routes to register before sending INIT_BASE_PATH
+              this.allRoutesRegistered.then(() => {
+                navigator.serviceWorker.ready.then((registration) => {
+                  const basePath = document.querySelector("base")?.href || "/";
+                  console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+                  registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
 
-          console.log("Service worker registered successfully at:", swPath);
+                    registration.active.postMessage({
+                      type: "STORE_MAP",
+                    });
+				  
+                });
+              });
+              context.setupMessageListener(context);
+            } else if (registration.waiting) {
+              console.log("Service worker installed");
+            } else if (registration.active) {
+              console.log("Service worker active");
+            }
+          } else {
+            console.log("Service worker already registered:", registration);
+          }
+
+          // Register the service worker with the correct scope
+          /*const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
+
+          console.log("Service Worker registered with scope:", registration.scope);
+          context.setupMessageListener(context);
+
+          console.log("Service worker registered successfully at:", swPath);*/
         } catch (error) {
           console.error("Service worker registration failed:", error);
         }
@@ -91,11 +97,8 @@
 
     setupMessageListener(context) {
       navigator.serviceWorker.addEventListener("message", (event) => {
-        console.log("General event listener received", event.data);
-        /*if (event.data.type === "STORE_LAST_CONTENT") { 
-  	      console.log("Received STORE_LAST message from service worker with",event.data)
-		  sessionStorage.setItem('LAST_CONTENT',this.contentElement.innerHTML);
-  	    }*/
+        console.log("Received event", event.data);
+
         if (event.data.type === "NAVIGATE_TO") {
           console.log("Received NAVIGATE_TO message from service worker with", event.data);
           this.navigateTo(event.data.href);
@@ -108,7 +111,7 @@
       this.routeRegistrationTracker.delete(route); // Remove route from tracker
       if (this.routeRegistrationTracker.size === 0) {
         this.resolveAllRoutesRegistered(); // Resolve the promise when all routes are registered
-        console.log("All routes registered");
+        console.log("Base routes transferred to ServiceWorker");
       }
     }
 
@@ -216,27 +219,29 @@
 
       // Register route with the service worker
       serviceWorkerReady
-        .then(() => {
-          console.log("Registering route", href);
+        .then((err) => {
+          // console.log("Registering route", href);
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
-            content: new URL(content, document.baseURI).toString(),
+            content: new URL(document.querySelector('base').href).pathname + content.slice(2)//new URL(content, document.baseURI).toString(),
           });
         })
         .catch((err) => {
           console.warn(err.message, href, content);
+          //return err;
         })
-        .finally(() => {
+        .finally((err) => {
           // Notify the router that this route has been registered
+          // if(err) return;
           this.router.notifyRouteRegistered(this);
 
           // Trigger view transition if the current location matches the route
           /*if(document.referrer) {
 		    setTimeout(()=>this.router.viewTransition(document.referrer),1000)
-	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
+	      } else*/ if (new URL(href, document.baseURI).toString() === location.toString()) {
             this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
-          }*/
+          }
         });
 
       // Track this route in the router's registration tracker
