@@ -40,6 +40,19 @@
       await this.registerServiceWorker();
 
       // setTimeout(()=>this.navigateTo('./usage'),1000);
+      this.allRoutesRegistered.then(() => {
+         navigator.serviceWorker.ready.then((registration) => {
+           const basePath = document.querySelector("base")?.href || "/";
+           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+           registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+
+           //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
+           registration.active.postMessage({
+             type: "STORE_MAP",
+           });
+           //}
+         });
+       });
     }
 
     async registerServiceWorker() {
@@ -50,7 +63,7 @@
           const context = this;
           const swPath = `${basePath}sw.js`;
 
-          let registration = await navigator.serviceWorker.getRegistration();
+          /*let registration = await navigator.serviceWorker.getRegistration();
 
           if (!registration) {
             const registration = await navigator.serviceWorker.register(swPath, {
@@ -80,15 +93,15 @@
             }
           } else {
             console.log("Service worker already registered:", registration);
-          }
+          }*/
 
           // Register the service worker with the correct scope
-          /*const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
+          const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
 
           console.log("Service Worker registered with scope:", registration.scope);
           context.setupMessageListener(context);
 
-          console.log("Service worker registered successfully at:", swPath);*/
+          console.log("Service worker registered successfully at:", swPath);
         } catch (error) {
           console.error("Service worker registration failed:", error);
         }

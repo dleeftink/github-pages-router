@@ -116,16 +116,17 @@ self.addEventListener("message", async (event) => {
   const id = event.source.id.split("-")[0];
 
   if (event.data && event.data.type === "ADD_ROUTE") {
+      
     const { href, content } = event.data;
     queueMap.set(href, content);
-
     console.log("Added route to queue", content);
   }
 
   if (event.data && event.data.type === "STORE_MAP") {
 	  
-    console.log(await listAllCaches());
+    // console.log(await listAllCaches());
 	  
+    console.log(await clients.matchAll({includeUncontrolled:true}));
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll([...new Set(queueMap.values())]);
     routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
@@ -164,6 +165,7 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  console.log("FetchEvent",event);
   /* FetchEvent Debugging */
   if (DEBUG) {
     event.waitUntil(
@@ -218,7 +220,7 @@ self.addEventListener("fetch", (event) => {
 
     // Respond with the custom response
     event.respondWith(customResponse);*/
-
+ 
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         if (!client) {
