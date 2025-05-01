@@ -5,12 +5,14 @@ const DEBUG = false;
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
 
-let hist = [{ url: getRootUrl(), content: "<p>preseeded</p>" }];
+let hist = [
+  /*{ url: getRootUrl(), content: "" }*/
+];
 
 // Define the assets to cache
 const assets = [
-   getRootUrl(),
-   getRootUrl() + "style.css", // Local stylesheet
+  getRootUrl(),
+  getRootUrl() + "style.css", // Local stylesheet
   "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
   "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
 ];
@@ -27,7 +29,27 @@ self.addEventListener("install", (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(assets);
+      // Cache all assets first
+      return cache.addAll(assets).then(() => {
+        // Retrieve the cached response for the root URL (assets[0])
+        const rootUrl = assets[0]; // This is the getRootUrl() entry
+        return cache.match(rootUrl).then((response) => {
+          if (response) {
+            // Extract the content of the cached response
+            return response.text().then((content) => {
+              // Push the root URL and its content into the hist array
+              hist.push({
+                url: rootUrl,
+                content: content,
+              });
+
+              console.log("Root URL content cached and added to hist:", hist);
+            });
+          } else {
+            console.warn("No cached response found for root URL:", rootUrl);
+          }
+        });
+      });
     }),
   );
 
@@ -56,7 +78,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "REQUEST_PREV") {
+  /*if (event.data && event.data.type === "REQUEST_PREV") {
     const originatingClient = event.source;
 
     if (originatingClient) {
@@ -73,14 +95,14 @@ self.addEventListener("message", (event) => {
     } else {
       console.log("No originating client found to send PREV_PAGE message.");
     }
-  }
+  }*/
 
   if (event.data && event.data.type === "INIT_BASE_PATHXX") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
     console.log("Updated base path to", basePath, event);
 
     // Send redirect event
-    const clientUrl = new URL(event.source.url).pathname;
+    /*const clientUrl = new URL(event.source.url).pathname;
     if (!routeMap.has(clientUrl)) {
       console.warn("Accessing non-existing route", event);
 
@@ -100,7 +122,7 @@ self.addEventListener("message", (event) => {
       } else {
         console.log("No originating client found to send NEEDS_REDIRECT message.");
       }
-    }
+    }*/
   }
 });
 
@@ -160,7 +182,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   /* FetchEvent Debugging */
-  if(DEBUG) {
+  if (DEBUG) {
     event.waitUntil(
       self.clients
         .get(event.clientId)
@@ -169,7 +191,7 @@ self.addEventListener("fetch", (event) => {
             console.log("No originating client found to send debug messages.");
             return;
           }
-    
+
           // Extract serializable fields from the FetchEvent
           const debugInfo = {
             type: "TEST_EVENT",
@@ -185,7 +207,7 @@ self.addEventListener("fetch", (event) => {
             headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
             routeMap: JSON.stringify([...routeMap.entries()]),
           };
-    
+
           // Send the debug information to the originating client
           try {
             originatingClient.postMessage(debugInfo);
@@ -203,7 +225,24 @@ self.addEventListener("fetch", (event) => {
   // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
-    event.respondWith(caches.match(getRootUrl()));
+    // event.respondWith(caches.match(routeMap.get(hist.at(-1))?.url));
+
+    // Create a new Response object with the HTML content
+    /*const customResponse = new Response(hist.at(0).content, {
+        headers: { 'Content-Type': 'text/html' },
+        status: 200,
+        statusText: 'OK'
+    });
+
+    // Respond with the custom response
+    event.respondWith(customResponse);*/
+
+    event.respondWith(
+      new Response(null, {
+        status: 204, // No Content
+        statusText: "Navigation prevented",
+      }),
+    );
   } else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname);
 
