@@ -1,23 +1,3 @@
-const DB_NAME = "RouteMapDB";
-const DB_VERSION = 1;
-const STORE_NAME = "RouteMapStore";
-
-async function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "key" });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
@@ -89,7 +69,7 @@ self.addEventListener("activate", (event) => {
         }),
       );
     })
-   // .then(() => loadRouteMap()) // Load routeMap from cache
+    .then(() => loadRouteMap()) // Load routeMap from cache
   );
 
   event.waitUntil(self.clients.claim());
@@ -104,45 +84,30 @@ self.addEventListener("message", (event) => {
 
 async function loadRouteMap() {
   try {
-    const db = await openDatabase();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get("routeMap");
+    const cache = await caches.open(CACHE_NAME);
+    const response = await cache.match(ROUTE_MAP_KEY);
 
-      request.onsuccess = () => {
-        const data = request.result?.value || [];
-        routeMap = new Map(data);
-        console.log("Loaded routeMap from IndexedDB:", routeMap);
-        resolve();
-      };
-
-      request.onerror = () => reject(request.error);
-    });
+    if (response) {
+      const data = await response.json();
+      routeMap = new Map(data); // Deserialize routeMap
+      console.log("Loaded routeMap from cache:", routeMap);
+    } else {
+      console.log("No routeMap found in cache.");
+    }
   } catch (error) {
-    console.error("Error loading routeMap from IndexedDB:", error);
+    console.error("Error loading routeMap:", error);
   }
 }
 
-async function saveRouteMap() {
+async function saveRouteMap(cache) {
   try {
-    const db = await openDatabase();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-      const serializedRouteMap = Array.from(routeMap.entries());
-
-      const request = store.put({ key: "routeMap", value: serializedRouteMap });
-
-      request.onsuccess = () => {
-        console.log("Saved routeMap to IndexedDB:", routeMap);
-        resolve();
-      };
-
-      request.onerror = () => reject(request.error);
-    });
+    const cache = await caches.open(CACHE_NAME);
+    const serializedRouteMap = JSON.stringify(Array.from(routeMap.entries()));
+    const response = new Response(serializedRouteMap, { headers: { "Content-Type": "application/json" } });
+    await cache.put(ROUTE_MAP_KEY, response);
+    console.log("Saved routeMap to cache:", routeMap);
   } catch (error) {
-    console.error("Error saving routeMap to IndexedDB:", error);
+    console.error("Error saving routeMap:", error);
   }
 }
 
@@ -165,8 +130,7 @@ self.addEventListener("message", async (event) => {
     await cache.addAll([...new Set(queueMap.values())]);
     routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
 
-    await saveRouteMap();
-	
+    await saveRouteMap(cache);
     queueMap.clear();
 
     // const response = await cache.match(ROUTE_MAP_KEY);
@@ -256,10 +220,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(customResponse);*/
 
     event.respondWith(
-      self.clients.get(event.clientId).then(async (client) => {
+      self.clients.get(event.clientId).then((client) => {
         if (!client) {
           console.log("Fresh client");
-		  await loadRouteMap();
           return caches.match(getRootUrl());
         }
         // const isFromClient = new URL(client.url).origin === url.origin;
