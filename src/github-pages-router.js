@@ -33,6 +33,11 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
 
+      let prevContent = sessionStorage.getItem("LAST_CONTENT");
+      if(prevContent) {
+		console.log("Initialised with");
+		this.contentElement.innerHTML = prevContent;
+	  }
       // Register the service worker
       await this.registerServiceWorker();
 	  
@@ -44,6 +49,8 @@
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
         });
       });
+	  
+      // setTimeout(()=>this.navigateTo('./usage'),1000);
 
     }
 
@@ -63,9 +70,9 @@
             .then((registration) => {
               console.log("Service Worker registered with scope:", registration.scope);
               // Check if there's an active service worker and setup listeners
-              /*if (registration.active) {
-                setupMessageListener(context);
-              }*/
+              //if (registration.active) {
+                context.setupMessageListener(context);
+              //}
            
             })
             .catch((error) => {
@@ -80,6 +87,22 @@
         console.warn("Service workers are not supported in this browser.");
       }
     }
+	
+    setupMessageListener(context) {			  
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log("General event listener received",event.data)
+  	    if (event.data.type === "STORE_LAST_CONTENT") { 
+  	      console.log("Received STORE_LAST message from service worker with",event.data)
+		  sessionStorage.setItem('LAST_CONTENT',this.contentElement.innerHTML);
+  	    }
+		/*if (event.data.type === "NAVIGATE_TO") { 
+  	      console.log("Received NAVIGATE_TO message from service worker with",event.data)
+		  this.navigateTo(event.data.href);
+  	    }*/
+       });
+  	  console.log("ServiceWorker Listeners activated");
+    }
+
 	
 	notifyRouteRegistered(route) {
       this.routeRegistrationTracker.delete(route); // Remove route from tracker
@@ -108,6 +131,10 @@
 	  this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
     }
+	
+	navigateTo(href) {
+      this.navigate({target:{href},preventDefault:()=>console.log("Navigated by app")})
+	}
 
     async viewTransition(url) {
       if (!document.startViewTransition) return await this.updateContent(url);
