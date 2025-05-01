@@ -33,6 +33,7 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
 
+      console.log("Routed from", document.referrer);
       /*let prevContent = sessionStorage.getItem("LAST_CONTENT");
       if(prevContent) {
 		console.log("Initialised with");
