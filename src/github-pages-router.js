@@ -50,10 +50,6 @@
           console.log("Sent INIT_BASE_PATH message after all routes were registered.");
         });
       });
-	  
-	  if(document.referrer) {
-		this.viewTransition(document.referrer)
-	  }
 
       // setTimeout(()=>this.navigateTo('./usage'),1000);
     }
@@ -232,7 +228,9 @@
           this.router.notifyRouteRegistered(this);
 
           // Trigger view transition if the current location matches the route
-          if (new URL(href, document.baseURI).toString() === location.toString()) {
+		  if(document.referrer) {
+		    this.router.viewTransition(document.referrer)
+	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
             this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
           }
         });
