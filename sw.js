@@ -97,7 +97,7 @@ self.addEventListener("message", (event) => {
     }
   }*/
 
-  if (event.data && event.data.type === "INIT_BASE_PATHXX") {
+  if (event.data && event.data.type === "INIT_BASE_PATH") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
     console.log("Updated base path to", basePath, event);
 
