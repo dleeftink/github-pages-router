@@ -25,7 +25,7 @@ function getRootUrl() {
 }
 
 self.addEventListener("install", (event) => {
-  console.log("Service worker installing...");
+  console.log("Service worker installing...", event);
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -57,72 +57,28 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  console.log("Service worker activating...");
+  console.log("Service worker activating...", event);
 
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              return caches.delete(cacheName); // Clean up old caches
-            }
-          }),
-        );
-      })
-      .then(() => loadRouteMap()), // Load routeMap from cache
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (CACHE_NAME !== cacheName) {
+            return caches.delete(cacheName); // Clean up old caches
+          }
+        }),
+      );
+    })
+    .then(() => loadRouteMap()) // Load routeMap from cache
   );
 
   event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener("message", (event) => {
-  /*if (event.data && event.data.type === "REQUEST_PREV") {
-    const originatingClient = event.source;
-
-    if (originatingClient) {
-      const lastEntry = hist.at(-1); // Get the last valid history entry
-
-      if (!lastEntry) return;
-      const data = {
-        type: "PREV_PAGE",
-        page: lastEntry.url,
-        content: lastEntry.content,
-      };
-
-      originatingClient.postMessage(data);
-    } else {
-      console.log("No originating client found to send PREV_PAGE message.");
-    }
-  }*/
-
   if (event.data && event.data.type === "INIT_BASE_PATH") {
     basePath = new URL(event.data.basePath).pathname; // Store the base path
     console.log("Updated base path to", basePath, event);
-
-    // Send redirect event
-    /*const clientUrl = new URL(event.source.url).pathname;
-    if (!routeMap.has(clientUrl)) {
-      console.warn("Accessing non-existing route", event);
-
-      // Ensure we only send the NEEDS_REDIRECT message to the originating client
-      const originatingClient = event.source;
-
-      if (originatingClient) {
-        try {
-          originatingClient.postMessage({
-            type: "NEEDS_REDIRECT",
-            data: { from: event.source.url },
-          });
-          console.log(`Sent NEEDS_REDIRECT message to originating client: ${originatingClient.id}`);
-        } catch (error) {
-          console.error(`Failed to send NEEDS_REDIRECT message to originating client:`, error);
-        }
-      } else {
-        console.log("No originating client found to send NEEDS_REDIRECT message.");
-      }
-    }*/
   }
 });
 
@@ -143,7 +99,7 @@ async function loadRouteMap() {
   }
 }
 
-async function saveRouteMap() {
+async function saveRouteMap(cache) {
   try {
     const cache = await caches.open(CACHE_NAME);
     const serializedRouteMap = JSON.stringify(Array.from(routeMap.entries()));
@@ -155,28 +111,55 @@ async function saveRouteMap() {
   }
 }
 
+let queueMap = new Map();
 self.addEventListener("message", async (event) => {
+  const id = event.source.id.split("-")[0];
+
+  if (event.data && event.data.type === "ADD_ROUTE") {
+    const { href, content } = event.data;
+    queueMap.set(href, content);
+
+    console.log("Added route to queue", content);
+  }
+
+  if (event.data && event.data.type === "STORE_MAP") {
+	  
+    console.log(await listAllCaches());
+	  
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll([...new Set(queueMap.values())]);
+    routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
+
+    await saveRouteMap(cache);
+    queueMap.clear();
+
+    // const response = await cache.match(ROUTE_MAP_KEY);
+    // console.log( await response.json(),routeMap)
+
+    event.source.postMessage({
+      type: "MAP_STORED",
+    });
+  }
+});
+
+/*let queueMap = new Map();
+
+self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "ADD_ROUTE") {
     const { href, content } = event.data;
 
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      const response = await fetch(content);
-
-      if (response.ok) {
-        console.log("Caching as", content);
-        await cache.put(content, response);
-        routeMap.set(href, content); // Update in-memory routeMap
-        await saveRouteMap(); // Persist the updated routeMap
-        console.log(`Route "${href}" mapped to "${content}" and added to cache.`);
-      } else {
-        console.error(`Failed to cache route "${content}".`);
-      }
-    } catch (error) {
-      console.error(`Error caching route "${content}":`, error);
+    queueMap.set(href, content);
+    if (queueMap.size === 1) {
+      queueMicrotask(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.addAll([...new Set(queueMap.values())]);
+        routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
+        await saveRouteMap(routeMap,cache);
+        queueMap.clear();
+      });
     }
   }
-});
+});*/
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -222,7 +205,6 @@ self.addEventListener("fetch", (event) => {
     );
   }
 
-  // App shell pattern => getRootUrl() == App shell
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
     // event.respondWith(caches.match(routeMap.get(hist.at(-1))?.url));
@@ -240,7 +222,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         if (!client) {
-          console.log("No originating client found to send debug messages.");
+          console.log("Fresh client");
           return caches.match(getRootUrl());
         }
         // const isFromClient = new URL(client.url).origin === url.origin;
@@ -262,17 +244,15 @@ self.addEventListener("fetch", (event) => {
 
     event.respondWith(
       caches.match(contentPath).then(async (cachedResponse) => {
-        console.warn("CACHE HIT AT", contentPath);
-
-        // Clone the cached response to avoid locking the body
-        const clonedResponse = cachedResponse.clone();
-
-        // Process the content of the cloned response
-        clonedResponse.text().then((content) => {
-          hist.push({ url: event.request.url, content });
-        });
-
         if (cachedResponse) {
+          // Clone the cached response to avoid locking the body
+          const clonedResponse = cachedResponse.clone();
+
+          // Process the content of the cloned response
+          clonedResponse.text().then((content) => {
+            hist.push({ url: event.request.url, content });
+          });
+          console.warn("CACHE HIT AT", contentPath);
           return cachedResponse; // Serve from cache
         }
         return fetch(contentPath); // Fallback to network
@@ -282,6 +262,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
+          console.warn("CACHE HIT AT", url);
           return cachedResponse;
         }
         return fetch(event.request); /*.then(response=>{
@@ -297,3 +278,27 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+/*
+event.waitUntil(
+  caches.open(CACHE_NAME).then((cache) =>
+    cache.matchAll("/github-pages-router/articles/overview.html", { ignoreSearch: true, ignoreMethod: true, ignoreVary: true }).then((responses) => {
+      console.log(`Found ${responses.length} matching responses`, responses);
+    }),
+  ),
+);
+*/
+
+async function listAllCaches() {
+  const cacheNames = await caches.keys();
+  console.log("Available caches:", cacheNames);
+
+  for (const cacheName of cacheNames) {
+    const cache = await caches.open(cacheName);
+    const cachedRequests = await cache.keys();
+    console.log(`\nCache "${cacheName}" contents:`);
+    cachedRequests.forEach((request) => {
+      console.log(`- ${request.url}`);
+    });
+  }
+}
