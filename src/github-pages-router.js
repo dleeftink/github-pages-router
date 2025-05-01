@@ -31,12 +31,13 @@
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
       if (!this.contentElement) console.error("Cannot find contentElement");
 
+      localStorage.setItem("debugkey-v1", parseInt(localStorage.getItem("debugkey-v1") ?? 0) + 1);
       console.log("Routed from", document.referrer);
 
       if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
 
       // Register the service worker
-      await this.registerServiceWorker()
+      await this.registerServiceWorker();
 
       // setTimeout(()=>this.navigateTo('./usage'),1000);
     }
@@ -64,10 +65,11 @@
                   console.log("Sent INIT_BASE_PATH message after all routes were registered.");
                   registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
 
-                    registration.active.postMessage({
-                      type: "STORE_MAP",
-                    });
-				  
+                  //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
+                  registration.active.postMessage({
+                    type: "STORE_MAP",
+                  });
+                  //}
                 });
               });
               context.setupMessageListener(context);
@@ -224,7 +226,7 @@
           navigator.serviceWorker.controller.postMessage({
             type: "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
-            content: new URL(document.querySelector('base').href).pathname + content.slice(2)//new URL(content, document.baseURI).toString(),
+            content: new URL(document.querySelector("base").href).pathname + content.slice(2), //new URL(content, document.baseURI).toString(),
           });
         })
         .catch((err) => {
