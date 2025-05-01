@@ -229,7 +229,7 @@
 
           // Trigger view transition if the current location matches the route
 		  if(document.referrer) {
-		    this.router.viewTransition(document.referrer)
+		    setTimeout(()=>this.router.viewTransition(document.referrer),1000)
 	      } else if (new URL(href, document.baseURI).toString() === location.toString()) {
             this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
           }
