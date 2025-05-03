@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v2";
+const CACHE_NAME = "github-pages-cache-v3";
 const ROUTE_MAP_KEY = "route-map-v2";
 const DEBUG = false;
 
