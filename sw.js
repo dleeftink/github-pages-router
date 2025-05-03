@@ -1,5 +1,5 @@
-const CACHE_NAME = "github-pages-cache-v1";
-const ROUTE_MAP_KEY = "route-map-v1";
+const CACHE_NAME = "github-pages-cache-v2";
+const ROUTE_MAP_KEY = "route-map-v2";
 const DEBUG = false;
 
 let routeMap = new Map(); // In-memory route map
@@ -222,7 +222,6 @@ self.addEventListener("fetch", (event) => {
         break;
 
       case "/clients":
-      
         response = (async () => {
           try {
             const clientList = await clients.matchAll();
@@ -256,11 +255,12 @@ self.addEventListener("fetch", (event) => {
           statusText: "Non-existing API",
         });
 
+        // Status 200 in case of empty object
         /*response = new Response(JSON.stringify({}), {
         headers: { 'Content-Type': 'application/json' },
-        status: 200,
-        statusText: 'OK',
-      });*/
+          status: 200,
+          statusText: 'OK',
+        });*/
         break;
     }
 
@@ -271,7 +271,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(contentPath).then(async (cachedResponse) => {
         if (cachedResponse) {
-          console.warn(CLIENT, "ROUTE CACHE HIT DIRECTED FROM", '"/' + url.pathname.replace(basePath, "") + '"', "TO", '"/' + contentPath.replace(basePath, "") + '"');
+          console.warn(
+            CLIENT, 
+            "ROUTE CACHE HIT DIRECTED FROM", '"/' + url.pathname.replace(basePath, "") + '"', 
+            "TO", '"/' + contentPath.replace(basePath, "") + '"'
+          );
           return cachedResponse; // Serve from cache
         }
         return fetch(contentPath); // Fallback to network
