@@ -9,33 +9,37 @@
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       
       const regs = await navigator.serviceWorker.getRegistrations();
-      handleSWUpdates(regs.at(-1));
+      if(regs.length) handleSWUpdates(regs.at(-1));
       
       drop(new Error("Route already defined"));
     } else if (navigator.serviceWorker) {
+        
+      const regs = await navigator.serviceWorker.getRegistrations();
+      if(regs.length) handleSWUpdates(regs.at(-1));
+
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
 
   function handleSWUpdates(registration) {
-      console.log("Checking for updates");
-      registration.onupdatefound = () => {
-        const installingWorker = registration.installing;
-        if (!installingWorker) return;
+    console.log("Checking for updates");
+    registration.onupdatefound = () => {
+      const installingWorker = registration.installing;
+      if (!installingWorker) return;
     
-        installingWorker.onstatechange = () => {
-          if (installingWorker.state === 'activated') {
-            console.log('New service worker activated. Reloading page...');
-            window.location.reload();
-          }
-        };
+      installingWorker.onstatechange = () => {
+        if (installingWorker.state === 'activated') {
+          console.log('New service worker activated. Reloading page...');
+          window.location.reload();
+        }
       };
+    };
     
-      // Check for updates immediately
-      if (navigator.serviceWorker.controller) {
-        registration.update();
-      }
+    // Check for updates immediately
+    if (navigator.serviceWorker.controller) {
+      registration.update();
     }
+  }
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -118,7 +122,6 @@
           
           this.setupMessageListener(this);
           this.resolveAppReady();
-          await this.appReady;
           console.groupEnd();
           
           // this.handleSWUpdates(registration);
