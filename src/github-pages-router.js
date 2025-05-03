@@ -241,7 +241,7 @@
             navigator.serviceWorker.controller.postMessage({
               type: "ADD_ROUTE",
               href: new URL(href, document.baseURI).pathname,
-              content: this.router.basePath + content.slice(2), //new URL(content, document.baseURI).toString(),
+              content: new URL(this.router.basePath).pathname + content.slice(2), //new URL(content, document.baseURI).toString(),
             });
           }
         })
