@@ -17,7 +17,7 @@
     }
   });
 
-  handleSWUpdates(registration) {
+  function handleSWUpdates(registration) {
       console.log("Checking for updates");
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
