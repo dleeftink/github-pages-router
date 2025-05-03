@@ -5,10 +5,6 @@ const DEBUG = false;
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
 
-let hist = [
-  /*{ url: getRootUrl(), content: "" }*/
-];
-
 // Define the assets to cache
 const assets = [
   getRootUrl(),
@@ -28,58 +24,43 @@ self.addEventListener("install", (event) => {
   console.log("Service worker installing...", event);
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Cache all assets first
-      return cache.addAll(assets).then(() => {
-        // Retrieve the cached response for the root URL (assets[0])
-        const rootUrl = assets[0]; // This is the getRootUrl() entry
-        return cache.match(rootUrl).then((response) => {
-          if (response) {
-            // Extract the content of the cached response
-            return response.text().then((content) => {
-              // Push the root URL and its content into the hist array
-              hist.push({
-                url: rootUrl,
-                content: content,
-              });
-
-              console.log("Root URL content cached and added to hist:", hist);
-            });
-          } else {
-            console.warn("No cached response found for root URL:", rootUrl);
-          }
-        });
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        console.log(`[ServiceWorker] Pre-installed clients: ${client.url}`);
       });
+    }),
+  );
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(assets);
     }),
   );
 
   self.skipWaiting();
 });
 
+self.serviceWorker.addEventListener("statechange", (event) => console.log("STATE CHANGE", self.serviceWorker.state));
+
 self.addEventListener("activate", (event) => {
-  console.log("Service worker activating...", event);
+  console.log("Service worker activating...", self, event);
 
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (CACHE_NAME !== cacheName) {
-            return caches.delete(cacheName); // Clean up old caches
-          }
-        }),
-      );
-    })
-    .then(() => loadRouteMap()) // Load routeMap from cache
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (CACHE_NAME !== cacheName) {
+              return caches.delete(cacheName); // Clean up old caches
+            }
+          }),
+        );
+      })
+      .then(() => loadRouteMap()), // Load routeMap from cache
   );
 
   event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "INIT_BASE_PATH") {
-    basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log("Updated base path to", basePath, event);
-  }
 });
 
 async function loadRouteMap() {
@@ -112,21 +93,24 @@ async function saveRouteMap(cache) {
 }
 
 let queueMap = new Map();
+
 self.addEventListener("message", async (event) => {
-  const id = event.source.id.split("-")[0];
+  const CLIENT = `[${event.source.id.split("-")[0]}]`;
+
+  if (event.data && event.data.type === "INIT_BASE_PATH") {
+    basePath = new URL(event.data.basePath).pathname; // Store the base path
+    console.log(CLIENT, "Updated base path to", basePath, event);
+  }
 
   if (event.data && event.data.type === "ADD_ROUTE") {
-      
     const { href, content } = event.data;
     queueMap.set(href, content);
-    console.log("Added route to queue", content);
+    console.log(CLIENT, "Added route to queue", content);
   }
 
   if (event.data && event.data.type === "STORE_MAP") {
-	  
     // console.log(await listAllCaches());
-	  
-    console.log(await clients.matchAll({includeUncontrolled:true}));
+
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll([...new Set(queueMap.values())]);
     routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
@@ -143,29 +127,12 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-/*let queueMap = new Map();
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "ADD_ROUTE") {
-    const { href, content } = event.data;
-
-    queueMap.set(href, content);
-    if (queueMap.size === 1) {
-      queueMicrotask(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.addAll([...new Set(queueMap.values())]);
-        routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
-        await saveRouteMap(routeMap,cache);
-        queueMap.clear();
-      });
-    }
-  }
-});*/
-
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+  const route = url.pathname.replace(basePath, "");
 
-  console.log("FetchEvent",event);
+  const CLIENT = `[${event.clientId.split("-")[0]}]`;
+
   /* FetchEvent Debugging */
   if (DEBUG) {
     event.waitUntil(
@@ -209,52 +176,102 @@ self.addEventListener("fetch", (event) => {
 
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || event.request.destination === "document") {
-    // event.respondWith(caches.match(routeMap.get(hist.at(-1))?.url));
-
-    // Create a new Response object with the HTML content
-    /*const customResponse = new Response(hist.at(0).content, {
-        headers: { 'Content-Type': 'text/html' },
-        status: 200,
-        statusText: 'OK'
-    });
-
-    // Respond with the custom response
-    event.respondWith(customResponse);*/
- 
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
+        const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
         if (!client) {
-          console.log("Fresh client");
+          console.clear();
+          console.warn(CLIENT, "Fresh client", event);
           return caches.match(getRootUrl());
         }
         // const isFromClient = new URL(client.url).origin === url.origin;
 
         if (routeMap.has(url.pathname)) {
+          console.warn(CLIENT, "Navigated to", '"/' + route + '"');
           client.postMessage({
             type: "NAVIGATE_TO",
             href: url.pathname,
           });
         }
+        console.warn(CLIENT, "Attemped to navigate to non-valid route:", '"/' + route + '"');
         return new Response(null, {
           status: 204, // No Content
           statusText: "Navigation prevented",
         });
       }),
     );
+  } else if (route.startsWith("API")) {
+    const subroute = route.replace("API", "");
+    let response, data;
+
+    // Extract the specific route path for matching
+    const routePath = subroute.split("?")[0]; // Remove query parameters if any
+
+    switch (routePath) {
+      case "/hello":
+        data = {
+          message: "Hello, world!",
+          timestamp: new Date().toISOString(),
+        };
+        response = new Response(JSON.stringify(data), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+          statusText: "OK",
+        });
+        break;
+
+      case "/clients":
+        // Fetch all active clients using clients.matchAll()
+        response = (async () => {
+          try {
+            const clientList = await clients.matchAll();
+            const formattedClients = clientList.map((client) => ({
+              id: client.id,
+              url: client.url,
+              type: client.type,
+              visibilityState: client.visibilityState,
+            }));
+
+            // Return the formatted client data as JSON
+            return new Response(JSON.stringify(formattedClients), {
+              headers: { "Content-Type": "application/json" },
+              status: 200,
+              statusText: "OK",
+            });
+          } catch (error) {
+            // Handle errors gracefully
+            return new Response(JSON.stringify({ error: "Failed to fetch clients" }), {
+              headers: { "Content-Type": "application/json" },
+              status: 500,
+              statusText: "Internal Server Error",
+            });
+          }
+        })();
+        break;
+
+      default:
+        // Handle unknown routes
+        response = new Response(null, {
+          status: 204, // No Content
+          statusText: "Non-existing API",
+        });
+
+        /*response = new Response(JSON.stringify({}), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+        statusText: 'OK',
+      });*/
+        break;
+    }
+
+    event.respondWith(response);
   } else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname);
 
     event.respondWith(
       caches.match(contentPath).then(async (cachedResponse) => {
         if (cachedResponse) {
-          // Clone the cached response to avoid locking the body
-          const clonedResponse = cachedResponse.clone();
-
-          // Process the content of the cloned response
-          clonedResponse.text().then((content) => {
-            hist.push({ url: event.request.url, content });
-          });
-          console.warn("CACHE HIT AT", contentPath);
+          console.warn(CLIENT, "ROUTE CACHE HIT DIRECTED FROM", '"/' + url.pathname.replace(basePath, "") + '"', "TO", '"/' + contentPath.replace(basePath, "") + '"');
           return cachedResponse; // Serve from cache
         }
         return fetch(contentPath); // Fallback to network
@@ -264,7 +281,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
-          console.warn("CACHE HIT AT", url);
+          console.warn(CLIENT, "ASSET CACHE HIT AT", url);
           return cachedResponse;
         }
         return fetch(event.request); /*.then(response=>{
