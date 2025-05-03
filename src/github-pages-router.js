@@ -88,7 +88,7 @@
             console.error("Service worker registration failed:", error);
           }
         } else {
-          console.log("Service worker registration skipped");
+          console.log("Service worker registration skipped [code update]");
           console.log("Previous registrations:", this.regs.length);
           
           const registration = this.regs.at(-1);
