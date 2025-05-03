@@ -187,6 +187,12 @@ self.addEventListener("fetch", (event) => {
         }
         // const isFromClient = new URL(client.url).origin === url.origin;
 
+        // Allow programmatic reloads to pass through [deprecated]
+        if (event.isReload) {
+          console.warn(CLIENT, "Programmatic reload detected. Allowing navigation to", '"/' + route + '"');
+          return fetch(event.request); // Pass through the reload request
+        }
+        
         if (routeMap.has(url.pathname)) {
           console.warn(CLIENT, "Navigated to", '"/' + route + '"');
           client.postMessage({
@@ -194,7 +200,7 @@ self.addEventListener("fetch", (event) => {
             href: url.pathname,
           });
         }
-        console.warn(CLIENT, "Attemped to navigate to non-valid route:", '"/' + route + '"');
+        console.warn(CLIENT, "Attempted to navigate to non-valid route:", '"/' + route + '"');
         return new Response(null, {
           status: 204, // No Content
           statusText: "Navigation prevented",
