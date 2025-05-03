@@ -118,6 +118,7 @@ self.addEventListener("message", async (event) => {
     await saveRouteMap(cache);
     queueMap.clear();
 
+    // Debug route cache 
     // const response = await cache.match(ROUTE_MAP_KEY);
     // console.log( await response.json(),routeMap)
 
@@ -221,7 +222,7 @@ self.addEventListener("fetch", (event) => {
         break;
 
       case "/clients":
-        // Fetch all active clients using clients.matchAll()
+      
         response = (async () => {
           try {
             const clientList = await clients.matchAll();
@@ -232,7 +233,6 @@ self.addEventListener("fetch", (event) => {
               visibilityState: client.visibilityState,
             }));
 
-            // Return the formatted client data as JSON
             return new Response(JSON.stringify(formattedClients), {
               headers: { "Content-Type": "application/json" },
               status: 200,

@@ -69,8 +69,9 @@
                 console.log("Sent INIT_BASE_PATH message after all routes were registered.");
                 registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
 
+                // Just for demo
                 /*let resp = await fetch(document.querySelector("base")?.href + "API/clients");
-                  let clients = await resp.json(); // Parse the JSON in one step
+                  let clients = await resp.json();
                   console.log("Logging from main", clients.length);*/
 
                 registration.active.postMessage({
@@ -247,20 +248,19 @@
         })
         .catch((err) => {
           console.warn(err.message, href, content);
-          //return err;
         })
         .finally((err) => {
+            
           // Notify the router that this route has been registered
-          // if(err) return;
           this.router.notifyRouteRegistered(this);
-
+          
+          // 
           this.router.appReady.then(() => {
               
             const atBasepath = this.router.basePath + href.slice(2) === this.router.basePath;
             
             // Trigger view transition if the current location matches the route
             if(document.referrer && atBasepath) {
-              //setTimeout(()=>this.router.viewTransition(document.referrer),1000)
               this.router.navigateTo(document.referrer)
 	        } else if (new URL(href, document.baseURI).toString() === location.toString()) {
               this.router.navigateTo(href);
