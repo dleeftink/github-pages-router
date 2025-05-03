@@ -6,17 +6,9 @@
 
   // Global service worker readiness tracker
   const serviceWorkerReady = new Promise(async (keep, drop) => {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if(regs.length) handleSWUpdates(regs.at(-1));
-      
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {      
       drop(new Error("Route already defined"));
     } else if (navigator.serviceWorker) {
-        
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if(regs.length) handleSWUpdates(regs.at(-1));
-
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
@@ -287,17 +279,20 @@
           this.router.notifyRouteRegistered(this);
           
           // 
-          this.router.appReady.then(() => {
+          /*this.router.appReady.then(() => {
               
             const atBasepath = this.router.basePath + href.slice(2) === this.router.basePath;
             
             // Trigger view transition if the current location matches the route
             if(document.referrer && atBasepath) {
+              console.log("Routed from referrer")
               this.router.navigateTo(document.referrer)
 	        } else if (new URL(href, document.baseURI).toString() === location.toString()) {
+              console.log("Routed from location")
               this.router.navigateTo(href);
             }
-          });
+          });*/
+          
         });
 
       // Track this route in the router's registration tracker
