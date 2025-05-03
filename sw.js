@@ -194,7 +194,7 @@ self.addEventListener("fetch", (event) => {
         }*/
         
           // Get the client's URL
-          const client = await self.clients.get(event.clientId);
+
           const clientUrl = client ? new URL(client.url).href : null;
         
           // Check if it's a reload specifically
