@@ -21,7 +21,7 @@ function getRootUrl() {
 }
 
 self.addEventListener("install", (event) => {
-  console.log("Service worker installing... [code update] ", event);
+  console.log("Service worker installing...", event);
 
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
