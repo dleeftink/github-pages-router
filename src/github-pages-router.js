@@ -47,42 +47,65 @@
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
-        try {
-          const basePathName = new URL(this.basePath).pathname;
-          const swPath = `${basePathName}sw.js`;
-    
-          // Always register the SW to trigger update checks
-          const registration = await navigator.serviceWorker.register(swPath, { 
-            scope: basePathName 
-          });
-    
-          // Handle SW updates
-          this.handleSWUpdates(registration);
-    
-          console.log("Service Worker registered with scope:", registration.scope);
-          this.setupMessageListener(this);
-    
-          // Existing logic to post messages after routes registered
-          this.allRoutesRegistered.then(() => {
-            navigator.serviceWorker.ready.then((registration) => {
-              registration.active.postMessage({ 
-                type: "INIT_BASE_PATH", 
-                basePath: this.basePath 
+        if (this.regs.length === 0) {
+          try {
+              
+            console.log("Previous registrations:", this.regs.length);
+            // Use document.baseURI to determine the base path
+            const basePathName = new URL(this.basePath).pathname;
+
+            const context = this;
+            const swPath = `${basePathName}sw.js`;
+
+            // Register the service worker with the correct scope
+            const registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });          
+            console.log("Service Worker registered with scope:", registration.scope);
+            this.setupMessageListener(this);
+
+            this.allRoutesRegistered.then(() => {
+              navigator.serviceWorker.ready.then((registration) => {
+                const basePath = this.basePath;
+
+                console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+                registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+
+                // Just for demo
+                /*let resp = await fetch(document.querySelector("base")?.href + "API/clients");
+                  let clients = await resp.json();
+                  console.log("Logging from main", clients.length);*/
+
+                registration.active.postMessage({
+                  type: "STORE_MAP",
+                });
               });
-              registration.active.postMessage({ type: "STORE_MAP" });
             });
-          });
-    
-          // Existing ready handling
-          await this.appReady;
+
+            console.log("Service worker initialised successfully at:", swPath);
+            
+            await this.appReady;
+            console.groupEnd();
+          } catch (error) {
+            console.error("Service worker registration failed:", error);
+          }
+        } else {
+          console.log("Service worker registration skipped");
+          console.log("Previous registrations:", this.regs.length);
+          
+          const registration = this.regs.at(-1);
+          this.handleSWUpdates(registration);
+          
+          this.setupMessageListener(this);
+          this.resolveAppReady();
           console.groupEnd();
-        } catch (error) {
-          console.error("Service worker registration failed:", error);
+          return;
         }
+      } else {
+        console.warn("Service workers are not supported in this browser.");
       }
     }
     
     handleSWUpdates(registration) {
+      console.log("Checking for updates");
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (!installingWorker) return;

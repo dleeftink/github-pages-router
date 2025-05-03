@@ -1,5 +1,5 @@
-const CACHE_NAME = "github-pages-cache-v3";
-const ROUTE_MAP_KEY = "route-map-v3";
+const CACHE_NAME = "github-pages-cache-v1";
+const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
 
 let routeMap = new Map(); // In-memory route map
@@ -21,7 +21,7 @@ function getRootUrl() {
 }
 
 self.addEventListener("install", (event) => {
-  console.log("Service worker installing... TEMP", event);
+  console.log("Service worker installing...", event);
 
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
