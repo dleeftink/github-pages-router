@@ -92,12 +92,14 @@
           console.log("Previous registrations:", this.regs.length);
           
           const registration = this.regs.at(-1);
-          this.handleSWUpdates(registration);
           
           this.setupMessageListener(this);
           this.resolveAppReady();
+          await this.appReady;
           console.groupEnd();
-          return;
+          
+          this.handleSWUpdates(registration);
+         
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
