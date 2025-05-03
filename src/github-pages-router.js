@@ -26,84 +26,73 @@
       this.resolveAllRoutesRegistered = resolve; // Resolve when all routes are registered
     });
 
+    appReady = new Promise((resolve) => {
+      this.resolveAppReady = resolve;
+    });
+
     async connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
+      this.basePath = document.querySelector("base")?.href || "/"
       if (!this.contentElement) console.error("Cannot find contentElement");
 
-      localStorage.setItem("debugkey-v1", parseInt(localStorage.getItem("debugkey-v1") ?? 0) + 1);
-      console.log("Routed from", document.referrer);
-
-      // if (navigator.serviceWorker && navigator.serviceWorker.controller) return;
+      console.warn("Rendered from", document.referrer || "index.html");
+      console.group("Setup");
 
       // Register the service worker
+      this.regs = await navigator.serviceWorker.getRegistrations();
       await this.registerServiceWorker();
-
-      // setTimeout(()=>this.navigateTo('./usage'),1000);
-      this.allRoutesRegistered.then(() => {
-        navigator.serviceWorker.ready.then((registration) => {
-          const basePath = document.querySelector("base")?.href || "/";
-          console.log("Sent INIT_BASE_PATH message after all routes were registered.");
-          registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
-
-          //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
-          registration.active.postMessage({
-            type: "STORE_MAP",
-          });
-          //}
-        });
-      });
+ 
     }
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
-        try {
-          // Use document.baseURI to determine the base path
-          const basePath = new URL(document.baseURI).pathname;
-          const context = this;
-          const swPath = `${basePath}sw.js`;
+        if (this.regs.length === 0) {
+          try {
+              
+            console.log("Previous registrations:", this.regs.length);
+            // Use document.baseURI to determine the base path
+            const basePathName = new URL(this.basePath).pathname;
 
-          /*let registration = await navigator.serviceWorker.getRegistration();
+            const context = this;
+            const swPath = `${basePathName}sw.js`;
 
-          if (!registration) {
-            const registration = await navigator.serviceWorker.register(swPath, {
-              scope: basePath,
-            });
-            if (registration.installing) {
-              console.log("Service worker installing");
-              // Wait for all routes to register before sending INIT_BASE_PATH
-              this.allRoutesRegistered.then(() => {
-                navigator.serviceWorker.ready.then((registration) => {
-                  const basePath = document.querySelector("base")?.href || "/";
-                  console.log("Sent INIT_BASE_PATH message after all routes were registered.");
-                  registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+            // Register the service worker with the correct scope
+            const registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });          
+            console.log("Service Worker registered with scope:", registration.scope);
+            this.setupMessageListener(this);
 
-                  //if(parseInt(localStorage.getItem("debugkey-v1")) === 1) {
-                  registration.active.postMessage({
-                    type: "STORE_MAP",
-                  });
-                  //}
+            this.allRoutesRegistered.then(() => {
+              navigator.serviceWorker.ready.then((registration) => {
+                const basePath = this.basePath;
+
+                console.log("Sent INIT_BASE_PATH message after all routes were registered.");
+                registration.active.postMessage({ type: "INIT_BASE_PATH", basePath });
+
+                /*let resp = await fetch(document.querySelector("base")?.href + "API/clients");
+                  let clients = await resp.json(); // Parse the JSON in one step
+                  console.log("Logging from main", clients.length);*/
+
+                registration.active.postMessage({
+                  type: "STORE_MAP",
                 });
               });
-              context.setupMessageListener(context);
-            } else if (registration.waiting) {
-              console.log("Service worker installed");
-            } else if (registration.active) {
-              console.log("Service worker active");
-            }
-          } else {
-            console.log("Service worker already registered:", registration);
-          }*/
+            });
 
-          // Register the service worker with the correct scope
-          const registration = await navigator.serviceWorker.register(swPath, { scope: basePath });
-
-          console.log("Service Worker registered with scope:", registration.scope);
-          context.setupMessageListener(context);
-
-          console.log("Service worker registered successfully at:", swPath);
-        } catch (error) {
-          console.error("Service worker registration failed:", error);
+            console.log("Service worker initialised successfully at:", swPath);
+            
+            await this.appReady;
+            console.groupEnd();
+          } catch (error) {
+            console.error("Service worker registration failed:", error);
+          }
+        } else {
+          console.log("Service worker registration skipped");
+          console.log("Previous registrations:", this.regs.length);
+          this.setupMessageListener(this);
+          this.resolveAppReady();
+          console.groupEnd();
+          return;
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
@@ -112,21 +101,24 @@
 
     setupMessageListener(context) {
       navigator.serviceWorker.addEventListener("message", (event) => {
-        console.log("Received event", event.data);
+        console.log("Received event:", event.data);
 
         if (event.data.type === "NAVIGATE_TO") {
-          console.log("Received NAVIGATE_TO message from service worker with", event.data);
+          console.log("Responding to NAVIGATE_TO event from service worker using payload:", event.data);
           this.navigateTo(event.data.href);
         }
+        if (event.data.type === "MAP_STORED") {
+          this.resolveAppReady();
+        }
       });
-      console.log("ServiceWorker Listeners activated");
+      console.log("Client Listeners activated");
     }
 
     notifyRouteRegistered(route) {
       this.routeRegistrationTracker.delete(route); // Remove route from tracker
       if (this.routeRegistrationTracker.size === 0) {
         this.resolveAllRoutesRegistered(); // Resolve the promise when all routes are registered
-        console.log("Base routes transferred to ServiceWorker");
+        console.warn("All base routes emitted from client");
       }
     }
 
@@ -152,7 +144,16 @@
     }
 
     navigateTo(href) {
-      this.navigate({ target: { href }, preventDefault: () => console.log("Navigated by app") });
+      this.navigate({
+        target: { href },
+        preventDefault: () =>
+          console.log(
+            "Navigated by app to:",
+            href.replace(new URL(document.baseURI).pathname, ""),
+            "from:",
+            location.pathname.replace(new URL(document.baseURI).pathname, "") || "new tab",
+          ),
+      });
     }
 
     async viewTransition(url) {
@@ -236,11 +237,13 @@
       serviceWorkerReady
         .then((err) => {
           // console.log("Registering route", href);
-          navigator.serviceWorker.controller.postMessage({
-            type: "ADD_ROUTE",
-            href: new URL(href, document.baseURI).pathname,
-            content: new URL(document.querySelector("base").href).pathname + content.slice(2), //new URL(content, document.baseURI).toString(),
-          });
+          if (this.router.regs.length === 0) {
+            navigator.serviceWorker.controller.postMessage({
+              type: "ADD_ROUTE",
+              href: new URL(href, document.baseURI).pathname,
+              content: this.router.basePath + content.slice(2), //new URL(content, document.baseURI).toString(),
+            });
+          }
         })
         .catch((err) => {
           console.warn(err.message, href, content);
@@ -251,12 +254,18 @@
           // if(err) return;
           this.router.notifyRouteRegistered(this);
 
-          // Trigger view transition if the current location matches the route
-          /*if(document.referrer) {
-		    setTimeout(()=>this.router.viewTransition(document.referrer),1000)
-	      } else*/ if (new URL(href, document.baseURI).toString() === location.toString()) {
-            this.router.viewTransition(new URL(content, document.baseURI).toString()); //'./'+new URL(document.referrer).pathname.split('/').at(-1)
-          }
+          this.router.appReady.then(() => {
+              
+            const atBasepath = this.router.basePath + href.slice(2) === this.router.basePath;
+            
+            // Trigger view transition if the current location matches the route
+            if(document.referrer && atBasepath) {
+              //setTimeout(()=>this.router.viewTransition(document.referrer),1000)
+              this.router.navigateTo(document.referrer)
+	        } else if (new URL(href, document.baseURI).toString() === location.toString()) {
+              this.router.navigateTo(href);
+            }
+          });
         });
 
       // Track this route in the router's registration tracker
