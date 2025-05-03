@@ -12,26 +12,7 @@
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
-
-  function handleSWUpdates(registration) {
-    console.log("Checking for updates");
-    registration.onupdatefound = () => {
-      const installingWorker = registration.installing;
-      if (!installingWorker) return;
-    
-      installingWorker.onstatechange = () => {
-        if (installingWorker.state === 'activated') {
-          console.log('New service worker activated. Reloading page...');
-          window.location.reload();
-        }
-      };
-    };
-    
-    // Check for updates immediately
-    if (navigator.serviceWorker.controller) {
-      registration.update();
-    }
-  }
+  
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -111,18 +92,39 @@
           console.log("Previous registrations:", this.regs.length);
           
           const registration = this.regs.at(-1);
+          if(registration) { 
+            this.handleSWUpdates(registration)
+          }
           
           this.setupMessageListener(this);
           this.resolveAppReady();
           console.groupEnd();
-          
-          // this.handleSWUpdates(registration);
          
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
       }
     }    
+    
+    handleSWUpdates(registration) {
+      console.log("Checking for updates");
+      registration.onupdatefound = () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+      
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'activated') {
+            console.log('New service worker activated. Reloading page...');
+            window.location.reload();
+          }
+        };
+      };
+      
+      // Check for updates immediately
+      if (navigator.serviceWorker.controller) {
+        registration.update();
+      }
+    }
 
     setupMessageListener(context) {
       navigator.serviceWorker.addEventListener("message", (event) => {
