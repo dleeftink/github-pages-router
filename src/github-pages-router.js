@@ -6,13 +6,39 @@
 
   // Global service worker readiness tracker
   const serviceWorkerReady = new Promise(async (keep, drop) => {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {      
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {   
+      const regs = await navigator.serviceWorker.getRegistrations();
+      if(regs.length) handleSWUpdates(regs.at(-1));
+       
       drop(new Error("Route already defined"));
     } else if (navigator.serviceWorker) {
+        
+      const regs = await navigator.serviceWorker.getRegistrations();
+      if(regs.length) handleSWUpdates(regs.at(-1));
+      
       navigator.serviceWorker.addEventListener("controllerchange", () => keep());
     }
   });
   
+  function handleSWUpdates(registration) {
+    console.log("Checking for updates");
+    registration.onupdatefound = () => {
+      const installingWorker = registration.installing;
+      if (!installingWorker) return;
+    
+      installingWorker.onstatechange = () => {
+        if (installingWorker.state === 'activated') {
+          console.log('New service worker activated. Reloading page...');
+          window.location.reload();
+        }
+      };
+    };
+    
+    // Check for updates immediately
+    if (navigator.serviceWorker.controller) {
+      registration.update();
+    }
+  }
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -91,10 +117,10 @@
           console.log("Service worker registration skipped");
           console.log("Previous registrations:", this.regs.length);
           
-          const registration = this.regs.at(-1);
+          /*const registration = this.regs.at(-1);
           if(registration) { 
             this.handleSWUpdates(registration)
-          }
+          }*/
           
           this.setupMessageListener(this);
           this.resolveAppReady();
@@ -106,7 +132,7 @@
       }
     }    
     
-    handleSWUpdates(registration) {
+    /*handleSWUpdates(registration) {
       console.log("Checking for updates");
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
@@ -124,7 +150,7 @@
       if (navigator.serviceWorker.controller) {
         registration.update();
       }
-    }
+    }*/
 
     setupMessageListener(context) {
       navigator.serviceWorker.addEventListener("message", (event) => {
