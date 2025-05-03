@@ -176,7 +176,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || event.request.destination === "document") {
+  if (event.request.mode === "navigate" || event.request.destination === "document" && routeMap.size> 0) {
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
@@ -188,10 +188,27 @@ self.addEventListener("fetch", (event) => {
         // const isFromClient = new URL(client.url).origin === url.origin;
 
         // Allow programmatic reloads to pass through [deprecated]
-        if (event.isReload) {
+        /*if (event.isReload) {
           console.warn(CLIENT, "Programmatic reload detected. Allowing navigation to", '"/' + route + '"');
           return fetch(event.request); // Pass through the reload request
+        }*/
+        
+          // Get the client's URL
+          const client = await self.clients.get(event.clientId);
+          const clientUrl = client ? new URL(client.url).href : null;
+        
+          // Check if it's a reload specifically
+          const isReload = event.request.referrer === '' ||
+                           event.request.referrer === clientUrl ||
+                     event.request.referrer.endsWith('/');
+      
+        if (isReload && event.request.headers.get('Accept')?.includes('text/html')) {
+          console.log('This is a reload');
+          // Allow the reload to pass through
+          event.respondWith(fetch(event.request));
+          return;
         }
+
         
         if (routeMap.has(url.pathname)) {
           console.warn(CLIENT, "Navigated to", '"/' + route + '"');
