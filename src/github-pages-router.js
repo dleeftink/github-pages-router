@@ -78,6 +78,7 @@
             // console.warn("Skip indexng");
             // this.resolveMapReady();
             // return registration;
+            
           }
           let routes = this.querySelectorAll(":scope > ghp-route");
           console.log("Discovered", routes);
@@ -100,7 +101,10 @@
           console.groupEnd();
           return registration;
         })
-        .catch((err) => console.warn(err))
+        .catch((err) => {
+           this.resolveMapReady(); // => there be dragons
+           console.warn(err)
+         })
         
         .then((registration) => {
           if (navigate === false) { 
@@ -128,9 +132,9 @@
         .finally (async (registration) => {
           
           await this.mapReady;
-          /*if (navigate === false) { 
+          if (navigate === false) { 
             throw new Error("Stay on path");
-          }*/
+          }
           const atBasepath = location.href === this.basePath;
 
           // Trigger view transition if the current location matches the route
