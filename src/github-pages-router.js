@@ -106,10 +106,15 @@
           if (navigate === false) { 
             throw new Error("Skip delegation");
           }
+          console.log("Setting up update listener")
+          registration = registration ?? this.regs[0];
           const refresh = async (event) => {
             if (event.target.state === "redundant") {
               console.log("Switching from stale ServiceWorker");
               registration.active.removeEventListener("statechange", refresh);
+              this.mapReady = new Promise((resolve) => {
+                this.resolveMapReady = resolve;
+              });
               registration = await navigator.serviceWorker.getRegistration();
               registration.active.addEventListener("statechange", refresh);
               console.log("New registration", registration);
@@ -120,10 +125,12 @@
           return registration;
         })
 
-        .finally ((registration) => {
-          if (navigate === false) { 
+        .finally (async (registration) => {
+          
+          await this.mapReady;
+          /*if (navigate === false) { 
             throw new Error("Stay on path");
-          }
+          }*/
           const atBasepath = location.href === this.basePath;
 
           // Trigger view transition if the current location matches the route
