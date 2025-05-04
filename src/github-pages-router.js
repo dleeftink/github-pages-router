@@ -7,16 +7,16 @@
   // Global service worker readiness tracker
   const serviceWorkerReady = new Promise(async (keep, drop) => {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {   
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if(regs.length) handleSWUpdates(regs.at(-1));
+      /*const regs = await navigator.serviceWorker.getRegistrations();
+      if(regs.length) handleSWUpdates(regs.at(-1));*/
        
       drop(new Error("Route already defined"));
     } else if (navigator.serviceWorker) {
-        
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if(regs.length) handleSWUpdates(regs.at(-1));
       
-      navigator.serviceWorker.addEventListener("controllerchange", () => keep());
+      navigator.serviceWorker.addEventListener("controllerchange", (event) => {
+        console.log("controllerChange",event);
+        keep();
+      });
     }
   });
   
@@ -86,7 +86,7 @@
             // Register the service worker with the correct scope
             const registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });          
             console.log("Service Worker registered with scope:", registration.scope);
-            this.setupMessageListener(this);
+            this.setupMessageListener();
 
             this.allRoutesRegistered.then(() => {
               navigator.serviceWorker.ready.then((registration) => {
@@ -116,13 +116,9 @@
         } else {
           console.log("Service worker registration skipped");
           console.log("Previous registrations:", this.regs.length);
+   
           
-          /*const registration = this.regs.at(-1);
-          if(registration) { 
-            this.handleSWUpdates(registration)
-          }*/
-          
-          this.setupMessageListener(this);
+          this.setupMessageListener();
           this.resolveAppReady();
           console.groupEnd();
          
@@ -152,7 +148,7 @@
       }
     }*/
 
-    setupMessageListener(context) {
+    setupMessageListener(serviceWorker) {
       navigator.serviceWorker.addEventListener("message", (event) => {
         console.log("Received event:", event.data);
 
@@ -307,7 +303,7 @@
           this.router.notifyRouteRegistered(this);
           
           // 
-          /*this.router.appReady.then(() => {
+          this.router.appReady.then(() => {
               
             const atBasepath = this.router.basePath + href.slice(2) === this.router.basePath;
             
@@ -319,7 +315,7 @@
               console.log("Routed from location")
               this.router.navigateTo(href);
             }
-          });*/
+          });
           
         });
 

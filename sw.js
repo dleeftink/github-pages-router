@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v6";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
 
@@ -195,7 +195,7 @@ self.addEventListener("fetch", (event) => {
 
         // Get the client's URL
 
-        const clientUrl = client ? new URL(client.url).href : null;
+        /*const clientUrl = client ? new URL(client.url).href : null;
 
         // Check if it's a reload specifically
         const isReload = event.request.referrer === "" || event.request.referrer === clientUrl || event.request.referrer.endsWith("/");
@@ -205,7 +205,7 @@ self.addEventListener("fetch", (event) => {
           // Allow the reload to pass through
           event.respondWith(fetch(event.request));
           return;
-        }
+        }*/
 
         if (routeMap.has(url.pathname)) {
           console.warn(CLIENT, "Navigated to", '"/' + route + '"');
