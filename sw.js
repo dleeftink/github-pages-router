@@ -103,9 +103,9 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data && event.data.type === "ADD_ROUTE") {
-    const { href, content } = event.data;
-    queueMap.set(href, content);
-    console.log(CLIENT, "Added route to queue", content);
+    const { href, path } = event.data;
+    queueMap.set(href, path);
+    console.log(CLIENT, "Added route to queue", path);
   }
 
   if (event.data && event.data.type === "STORE_MAP") {
