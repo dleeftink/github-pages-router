@@ -61,7 +61,7 @@
 
           this.setupMessageListeners();
           this.setupRoutes({ skip: true });
-          // this.resolveMapReady();
+          // this.resolveAppReady();
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
@@ -73,14 +73,11 @@
       navigator.serviceWorker.ready
 
         .then((registration) => {
-          if (skip === true) {
-            console.warn("Skip indexing");
-            //throw new Error("Skip indexing");
-
-            registration.active.postMessage({
-              type: "CHECK_MAP",
-            });
-            return registration;
+          if (skip === true) { 
+            throw new Error("Skip indexing");
+            // console.warn("Skip indexng");
+            // this.resolveMapReady();
+            // return registration;
           }
           let routes = this.querySelectorAll(":scope > ghp-route");
           console.log("Discovered", routes);
@@ -103,12 +100,11 @@
           console.groupEnd();
           return registration;
         })
-        //.catch((err) => console.warn(err))
-
+        .catch((err) => console.warn(err))
+        
         .then((registration) => {
-          if (navigate === false) {
-            console.warn("Skip delegation");
-            return registration; //throw new Error("Skip delegation");
+          if (navigate === false) { 
+            throw new Error("Skip delegation");
           }
           const refresh = async (event) => {
             if (event.target.state === "redundant") {
@@ -124,9 +120,10 @@
           return registration;
         })
 
-        .finally((registration) => {
-          console.log("Pre transit");
-          if (navigate === false) return; //throw new Error("Stay on path");
+        .finally ((registration) => {
+          if (navigate === false) { 
+            throw new Error("Stay on path");
+          }
           const atBasepath = location.href === this.basePath;
 
           // Trigger view transition if the current location matches the route
@@ -137,8 +134,8 @@
             console.log("Routed to index");
             this.navigateTo(new URL(this.basePath).pathname);
           }
-        });
-      //.catch((err) => console.warn(err));
+        })
+        .catch((err) => console.warn(err));
     }
 
     setupMessageListeners(serviceWorker) {

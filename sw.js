@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v7";
+const CACHE_NAME = "github-pages-cache-v5";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
 
@@ -127,13 +127,14 @@ self.addEventListener("message", async (event) => {
     });
   }
 
-  if (event.data && event.data.type === "CHECK_MAP") {
-    if (routeMap.size > 0) {
+  /*if (event.data && event.data.type === "CHECK_MAP") {
+    if(routeMap.size>0) {
       event.source.postMessage({
         type: "MAP_READY",
       });
     }
-  }
+  }*/
+  
 });
 
 self.addEventListener("fetch", (event) => {
