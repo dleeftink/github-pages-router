@@ -3,7 +3,7 @@
     if (customElements.get(elementName)) return;
     customElements.define(elementName, ElementClass);
   }
-  
+
   /**
    * Web component <ghp-router>. All other ghp-* components must be inside a <ghp-router>.
    */
@@ -24,7 +24,7 @@
     async connectedCallback() {
       addEventListener("popstate", this);
       this.contentElement = document.querySelector(this.getAttribute("outlet") ?? "main");
-      this.basePath = document.querySelector("base")?.href || "/"
+      this.basePath = document.querySelector("base")?.href || "/";
       if (!this.contentElement) console.error("Cannot find contentElement");
 
       console.warn("Rendered from", document.referrer || "index.html");
@@ -33,14 +33,12 @@
       // Register the service worker
       this.regs = await navigator.serviceWorker.getRegistrations();
       await this.registerServiceWorker();
- 
     }
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
         if (this.regs.length === 0) {
           try {
-              
             console.log("Previous registrations:", this.regs.length);
             // Use document.baseURI to determine the base path
             const basePathName = new URL(this.basePath).pathname;
@@ -49,61 +47,74 @@
             const swPath = `${basePathName}sw.js`;
 
             // Register the service worker with the correct scope
-            const registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });          
+            const registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
             this.setupMessageListeners();
             this.setupRoutes();
-            
           } catch (error) {
             console.error("Service worker registration failed:", error);
           }
         } else {
           console.log("Service worker registration skipped");
           console.log("Previous registrations:", this.regs.length);
-   
-          
-          // this.setupMessageListeners();
+
+          let registration = this.regs.at(-1); //await navigator.serviceWorker.getRegistration();
+
+          registration.active.onstatechange = async (event) => {
+            if (event.target.state === "redundant") {
+              console.log("Switching from stale ServiceWorker");
+              registration = await navigator.serviceWorker.getRegistration();
+              console.log("New registration", registration);
+              this.setupRoutes();
+            }
+          };
+
+          this.setupMessageListeners();
           // this.resolveAppReady();
           console.groupEnd();
-         
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
       }
-    }    
-    
-    setupRoutes () {
-      this.allRoutesRegistered.then((routes)=>
-          navigator.serviceWorker.ready.then((registration)=>{ 
-            console.log("Discovered",routes)
-            routes.forEach(({href,path})=>{
-              registration.active.postMessage({
-                type: "ADD_ROUTE",
-                href: new URL(href, document.baseURI).pathname,
-                path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
-              })
-            })
+    }
+
+    setupRoutes() {
+      //this.allRoutesRegistered.then((routes)=>
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          let routes = this.querySelectorAll(":scope > ghp-route");
+          console.log("Discovered", routes);
+
+          routes.forEach(({ href, path }) => {
             registration.active.postMessage({
-              type: "STORE_MAP",
+              type: "ADD_ROUTE",
+              href: new URL(href, document.baseURI).pathname,
+              path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
             });
-          }).then(async()=>{   
-             await this.appReady;
-             console.log("Service worker initialised successfully");
-             console.groupEnd();
-          }).then(()=>{
-             const atBasepath = location.href === this.basePath;
-             console.log(this.basePath,location.href,atBasepath);
-             
-             // Trigger view transition if the current location matches the route
-             if(document.referrer && atBasepath) {
-               console.log("Routed from referrer")
-               this.navigateTo(document.referrer)
-             } else  { 
-               console.log("Routed to index")
-               this.navigateTo(new URL(this.basePath).pathname); 
-             }
-          })
-        )
+          });
+          registration.active.postMessage({
+            type: "STORE_MAP",
+          });
+        })
+        .then(async () => {
+          await this.appReady;
+          console.log("Service worker initialised successfully");
+          console.groupEnd();
+        })
+        .then(() => {
+          const atBasepath = location.href === this.basePath;
+          console.log(this.basePath, location.href, atBasepath);
+
+          // Trigger view transition if the current location matches the route
+          if (document.referrer && atBasepath) {
+            console.log("Routed from referrer");
+            this.navigateTo(document.referrer);
+          } else {
+            console.log("Routed to index");
+            this.navigateTo(new URL(this.basePath).pathname);
+          }
+        });
+      //)
     }
 
     setupMessageListeners(serviceWorker) {
@@ -122,13 +133,13 @@
     }
 
     addRoute(route) {
-      this.routes.push(route);         
-      if(this.routes.length === 1) {
-        queueMicrotask(()=>{
+      this.routes.push(route);
+      if (this.routes.length === 1) {
+        queueMicrotask(() => {
           //const payload = JSON.stringify(this.routes)
-          //console.log(payload);  
-           this.resolveAllRoutesRegistered(this.routes);    
-        })
+          //console.log(payload);
+          this.resolveAllRoutesRegistered(this.routes);
+        });
       }
     }
 
@@ -237,15 +248,15 @@
       this.router = findParentRouter(this);
       if (!this.router) return;
 
-      const href = this.href = this.getAttribute("href");
-      const path = this.path = this.getAttribute("path");
+      const href = (this.href = this.getAttribute("href"));
+      const path = (this.path = this.getAttribute("path"));
 
       if (!href || !path) {
         console.error("Missing href or path attribute");
         return;
       }
 
-       /*navigator.serviceWorker.controller.postMessage({
+      /*navigator.serviceWorker.controller.postMessage({
               type: "ADD_ROUTE",
               href: new URL(href, document.baseURI).pathname,
               content: new URL(this.router.basePath).pathname + content.slice(2), //new URL(content, document.baseURI).toString(),
@@ -264,8 +275,7 @@
             }*/
 
       // Track this route in the router's registration tracker
-      this.router.addRoute({href,path});
-      
+      // this.router.addRoute({href,path});
     }
   }
 
