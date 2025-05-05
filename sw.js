@@ -1,9 +1,6 @@
-const CACHE_NAME = "github-pages-cache-v2";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
-
-let routeMap = new Map(); // In-memory route map
-let basePath = "/"; // Default base path
 
 // Define the assets to cache
 const assets = [
@@ -13,9 +10,16 @@ const assets = [
   "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"
 ];
 
+let routeMap = new Map(); // In-memory route map
+let basePath = "/"; // Default base path
+
+if(self.location) {
+  basePath = self.location.pathname;
+  basePath = basePath.substring(0,basePath.indexOf('/',1)+1);
+}
+
 // Helper function to determine the root folder URL
 function getRootUrl() {
-  // Don't listen for basePath => isn't defined during installation..
   let url = self.location.href;
   return url.substring(0, url.lastIndexOf("/") + 1);
 }
@@ -46,6 +50,7 @@ self.serviceWorker.addEventListener("statechange", (event) => {
 
 self.addEventListener("activate", (event) => {
   console.log("Service worker activating...", self, event);
+  console.log("CHECKING BASEPATH",basePath)
 
   event.waitUntil(
     caches
@@ -63,16 +68,7 @@ self.addEventListener("activate", (event) => {
   );
 
   event.waitUntil(self.clients.claim());
-  /*event.waitUntil(
-    Promise.resolve()
-      .then(() => self.clients.claim()) // Take control of all clients
-      .then(() => {
-        if (resolveActivation) {
-          resolveActivation(); // Resolve the activation guard
-          resolveActivation = null; // Clean up
-        }
-      })
-  );*/
+  
 });
 
 async function loadRouteMap() {
@@ -110,11 +106,6 @@ let storeTasks = 0;
 self.addEventListener("message", async (event) => {
   const CLIENT = `[${event.source.id.split("-")[0]}]`;
 
-  if (event.data && event.data.type === "INIT_BASE_PATH") {
-    basePath = new URL(event.data.basePath).pathname; // Store the base path
-    console.log(CLIENT, "Updated base path to", basePath, event);
-  }
-
   if (event.data && event.data.type === "ADD_ROUTE") {
     const { href, path } = event.data;
     if (queueMap.has(href)) {
@@ -125,6 +116,7 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data && event.data.type === "STORE_MAP") {
+      
     // console.log(await listAllCaches());
     storeTasks++;
     if (storeTasks === 1) {
@@ -167,48 +159,6 @@ self.addEventListener("fetch", (event) => {
   const route = url.pathname.replace(basePath, "");
   const CLIENT = `[${event.clientId.split("-")[0]}]`;
 
-  /* FetchEvent Debugging */
-
-  if (DEBUG) {
-    event.waitUntil(
-      self.clients
-        .get(event.clientId)
-        .then((originatingClient) => {
-          if (!originatingClient) {
-            console.log("No originating client found to send debug messages.");
-            return;
-          }
-
-          // Extract serializable fields from the FetchEvent
-          const debugInfo = {
-            type: "TEST_EVENT",
-            url: event.request.url,
-            method: event.request.method,
-            mode: event.request.mode,
-            referrer: event.request.referrer,
-            destination: event.request.destination,
-            credentials: event.request.credentials,
-            redirect: event.request.redirect,
-            integrity: event.request.integrity,
-            isReload: event.isReload,
-            headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-            routeMap: JSON.stringify([...routeMap.entries()]),
-          };
-
-          // Send the debug information to the originating client
-          try {
-            originatingClient.postMessage(debugInfo);
-            console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
-          } catch (error) {
-            console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
-          }
-        })
-        .catch((error) => {
-          console.error("Error retrieving originating client:", error);
-        }),
-    );
-  }
-
   // Check if the request is a navigation request
   if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
     event.respondWith(
@@ -221,25 +171,6 @@ self.addEventListener("fetch", (event) => {
         }
         // const isFromClient = new URL(client.url).origin === url.origin;
 
-        // Allow programmatic reloads to pass through [deprecated]
-        /*if (event.isReload) {
-            console.warn(CLIENT, "Programmatic reload detected. Allowing navigation to", '"/' + route + '"');
-            return fetch(event.request); // Pass through the reload request
-          }*/
-
-        // Get the client's URL
-
-        /*const clientUrl = client ? new URL(client.url).href : null;
-    
-          // Check if it's a reload specifically
-          const isReload = event.request.referrer === "" || event.request.referrer === clientUrl || event.request.referrer.endsWith("/");
-    
-          if (isReload && event.request.headers.get("Accept")?.includes("text/html")) {
-            console.log("This is a reload");
-            // Allow the reload to pass through
-            event.respondWith(fetch(event.request));
-            return;
-          }*/
 
         if (routeMap.has(url.pathname)) {
           console.warn(CLIENT, "Navigated to", '"/' + route + '"');
