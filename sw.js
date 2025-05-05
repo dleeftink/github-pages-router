@@ -209,7 +209,7 @@ self.addEventListener("message", async (event) => {
           const cache = await caches.open(CACHE_NAME);
           const uniquePaths = [...new Set(queueMap.values())];
 
-          await cache.addAll(uniquePaths);
+          cache.addAll(uniquePaths);
           routeMap = new Map([...routeMap, ...queueMap]);
 
           await saveRouteMap();
