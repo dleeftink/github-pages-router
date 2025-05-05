@@ -10,14 +10,16 @@ function getClientPrefix(id = "") {
 function logBase(level, ...args) {
   if (!DEBUG) return;
   console[level]("[ServiceWorker]",  ...args.filter(arg=>!(arg instanceof Object)));
-  if([...args].filter(arg=>(arg instanceof Object)).length) console[level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
+  if([...args].filter(arg=>(arg instanceof Object)).length) 
+  console[level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 function logClient(level, id, ...args) {
   if (!DEBUG) return;
   const prefix = getClientPrefix(id);
   console[level](`[ServiceWorker] ${prefix}`, ...args.filter(arg=>!(arg instanceof Object)));
-  if([...args].filter(arg=>(arg instanceof Object)).length) console[level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
+  if([...args].filter(arg=>(arg instanceof Object)).length) 
+  console[level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 // Define the assets to cache
@@ -89,7 +91,30 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-let loadTasks = 0;
+// === Route Map Management ===
+async function loadRouteMap() {
+  logBase("debug", "Loading route map from cache...");
+
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const response = await cache.match(ROUTE_MAP_KEY);
+
+    if (response) {
+      const data = await response.json();
+      routeMap = new Map(data);
+      logBase("log", "Route map loaded successfully", {
+        entries: routeMap.size,
+        sampleEntry: routeMap.entries().next().value,
+      });
+    } else {
+      logBase("warn", "No route map found in cache - using empty map");
+    }
+  } catch (error) {
+    logBase("error", "Failed to load route map:", error);
+  }
+}
+
+/*let loadTasks = 0;
 // === Route Map Management ===
 async function loadRouteMap() {
   loadTasks++;
@@ -125,8 +150,7 @@ async function loadRouteMap() {
       }
     });
   }
-}
-
+}*/
 
 async function saveRouteMap() {
   logBase("debug", "Saving route map to cache...");
