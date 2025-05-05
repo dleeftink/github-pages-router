@@ -11,6 +11,9 @@ const assets = [
   getRootUrl() + "style.css", // Local stylesheet
   "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
   "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
+  "https://fonts.gstatic.com/s/notosans/v39/o-0bIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjc5a7duw.woff2",
+  "https://fonts.gstatic.com/s/averiaseriflibre/v18/neIVzD2ms4wxr6GvjeD0X88SHPyX2xYGGS6axq0r.woff2",
+  "https://fonts.gstatic.com/s/averiaseriflibre/v18/neIWzD2ms4wxr6GvjeD0X88SHPyX2xYOoguP.woff2",
 ];
 
 // Helper function to determine the root folder URL
@@ -40,7 +43,9 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-self.serviceWorker.addEventListener("statechange", (event) => console.log("STATE CHANGE", self.serviceWorker.state));
+self.serviceWorker.addEventListener("statechange", (event) => {
+  console.log("STATE CHANGE", self.serviceWorker.state);
+});
 
 self.addEventListener("activate", (event) => {
   console.log("Service worker activating...", self, event);
@@ -93,6 +98,7 @@ async function saveRouteMap(cache) {
 }
 
 let queueMap = new Map();
+let storeTasks = 0;
 
 self.addEventListener("message", async (event) => {
   const CLIENT = `[${event.source.id.split("-")[0]}]`;
@@ -104,32 +110,40 @@ self.addEventListener("message", async (event) => {
 
   if (event.data && event.data.type === "ADD_ROUTE") {
     const { href, path } = event.data;
+    if (queueMap.has(href)) {
+      return;
+    }
     queueMap.set(href, path);
     console.log(CLIENT, "Added route to queue", path);
   }
 
   if (event.data && event.data.type === "STORE_MAP") {
     // console.log(await listAllCaches());
+    storeTasks++;
+    if (storeTasks === 1) {
+      queueMicrotask(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.addAll([...new Set(queueMap.values())]);
+        routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
 
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll([...new Set(queueMap.values())]);
-    routeMap = new Map([...routeMap.entries(), ...queueMap.entries()]);
-
-    await saveRouteMap(cache);
-    queueMap.clear();
+        await saveRouteMap(cache);
+        queueMap.clear();
+        event.source.postMessage({
+          type: "MAP_READY",
+        });
+        storeTasks = 0;
+      });
+    }
 
     // Debug route cache
     // const response = await cache.match(ROUTE_MAP_KEY);
     // console.log( await response.json(),routeMap)
-
-    event.source.postMessage({
-      type: "MAP_READY",
-    });
   }
 
   if (event.data && event.data.type === "CHECK_MAP") {
-    console.log("I AM",self);
-    if(routeMap.size>0) {
+    console.log("I AM", self);
+
+    if (routeMap.size > 0) {
       event.source.postMessage({
         type: "MAP_READY",
       });
@@ -139,7 +153,6 @@ self.addEventListener("message", async (event) => {
       });
     }
   }
-  
 });
 
 self.addEventListener("fetch", (event) => {
@@ -324,7 +337,7 @@ self.addEventListener("fetch", (event) => {
           console.warn(CLIENT, "ASSET CACHE HIT AT", url);
           return cachedResponse;
         }
-        console.warn(CLIENT, "FETCH FROM SOURCE AT", url);
+        console.warn(CLIENT, "FETCHED FROM SOURCE", url);
         return fetch(event.request); /*.then(response=>{
 			if(!response) {
 				return new Response(null, {

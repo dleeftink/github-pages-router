@@ -37,12 +37,11 @@
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.addEventListener("controllerchange", event=> { 
-          this.setupRoutes({navigate:true});
+        navigator.serviceWorker.addEventListener("controllerchange", (event) => {
+          this.setupRoutes();
         });
-        
+
         if (this.regs.length === 0) {
-          
           try {
             console.log("Previous registrations:", this.regs.length);
             // Use document.baseURI to determine the base path
@@ -55,17 +54,16 @@
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
             this.setupMessageListeners();
-            await this.mapReady;
-            this.setupRoutes({skip:true});
+            this.servePage();
           } catch (error) {
             console.error("Service worker registration failed:", error);
           }
         } else {
           console.log("Service worker registration skipped");
-          console.log("Previous registrations:", this.regs.length,this.regs.at(-1).active.state);
+          console.log("Previous registrations", this.regs.length);
 
           this.setupMessageListeners();
-          this.setupRoutes({ skip: true });
+          this.servePage();
           // this.resolveAppReady();
         }
       } else {
@@ -73,86 +71,49 @@
       }
     }
 
+    servePage() {
+      navigator.serviceWorker.ready.then((registration) => {
+        //queueMicrotask(()=>
+        registration.active.postMessage({
+          type: "CHECK_MAP",
+        });
+        //)
+      });
+
+      this.mapReady.then(() => {
+        const atBasepath = location.href === this.basePath;
+
+        // Trigger view transition if the current location matches the route
+        if (document.referrer && atBasepath) {
+          console.log("Routed from referrer");
+          this.navigateTo(document.referrer);
+        } else {
+          console.log("Routed to index");
+          this.navigateTo(new URL(this.basePath).pathname);
+        }
+      });
+    }
+
     setupRoutes({ skip = false, navigate = true } = {}) {
       console.log("Setting up routes");
-      navigator.serviceWorker.ready
+      navigator.serviceWorker.ready.then((registration) => {
+        let routes = this.querySelectorAll(":scope > ghp-route");
+        console.log("Discovered", routes);
 
-        .then((registration) => {
-          if (skip === true) { 
-            // throw new Error("Skip indexing");
-            console.warn("Skip indexing");
-            registration.active.postMessage({
-              type: "CHECK_MAP",
-            });
-            return registration;
-            
-          }
-          let routes = this.querySelectorAll(":scope > ghp-route");
-          console.log("Discovered", routes);
-
-          routes.forEach(({ href, path }) => {
-            registration.active.postMessage({
-              type: "ADD_ROUTE",
-              href: new URL(href, document.baseURI).pathname,
-              path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
-            });
-          });
+        routes.forEach(({ href, path }) => {
           registration.active.postMessage({
-            type: "STORE_MAP",
+            type: "ADD_ROUTE",
+            href: new URL(href, document.baseURI).pathname,
+            path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
           });
-          return registration;
-        })
-        .then(async (registration) => {
-          await this.mapReady;
-          console.log("Service worker initialised successfully");
-          console.groupEnd();
-          return registration;
-        })
-        /*.catch((err) => {
-           this.resolveMapReady(); // => there be dragons
-           console.warn(err)
-         })*/
-        
-        /*.then((registration) => {
-          if (navigate === false) { 
-            throw new Error("Skip delegation");
-          }
-          console.log("Setting up update listener")
-          registration = registration ?? this.regs[0];
-          const refresh = async (event) => {
-            if (event.target.state === "redundant") {
-              console.log("Switching from stale ServiceWorker");
-              registration.active.removeEventListener("statechange", refresh);
-              this.mapReady = new Promise((resolve) => {
-                this.resolveMapReady = resolve;
-              });
-              registration = await navigator.serviceWorker.getRegistration();
-              registration.active.addEventListener("statechange", refresh);
-              console.log("New registration", registration);
-              this.setupRoutes({ navigate: false });
-            }
-          };
-          registration.active.addEventListener("statechange", refresh);
-          return registration;
-        })*/
-
-        .finally (async (registration) => {
-          
-          if (navigate === false) { 
-            throw new Error("Stay on path");
-          }
-          const atBasepath = location.href === this.basePath;
-
-          // Trigger view transition if the current location matches the route
-          if (document.referrer && atBasepath) {
-            console.log("Routed from referrer");
-            this.navigateTo(document.referrer);
-          } else {
-            console.log("Routed to index [does it recurse anymores?]");
-            this.navigateTo(new URL(this.basePath).pathname);
-          }
-        })
-        .catch((err) => console.warn(err));
+        });
+        registration.active.postMessage({
+          type: "STORE_MAP",
+        });
+        console.log("Service worker initialised successfully");
+        console.groupEnd();
+        return registration;
+      });
     }
 
     setupMessageListeners(serviceWorker) {
@@ -167,9 +128,10 @@
           this.resolveMapReady();
         }
         if (event.data.type === "MAP_NOT_READY") {
-          this.mapReady = new Promise((resolve) => {
+          console.log("Waiting for routes...");
+          /*this.mapReady = new Promise((resolve) => {
             this.resolveMapReady = resolve;
-          });
+          });*/
         }
       });
       console.log("Client Listeners activated");
