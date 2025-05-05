@@ -269,50 +269,8 @@ self.addEventListener("fetch", (event) => {
   const route = url.pathname.replace(basePath, "");
   const clientId = event.clientId;
   
-  // Navigation requests
-  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
-      
-    logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
-      path: route || "/",
-      hasRoute: routeMap.has(url.pathname),
-    });
-
-    event.respondWith(
-      self.clients.get(clientId).then(async (client) => {
-        const usedClientId = client?.id ?? event.resultingClientId;
-
-        if (!client) {
-          console.clear();
-          logClient("warn", usedClientId, "Fresh client detected - serving root");
-          return caches.match(getRootUrl());
-        }
-
-        if (routeMap.has(url.pathname)) {
-          logClient("warn", usedClientId, "Navigating to registered route", {
-            path: route,
-          });
-
-          client.postMessage({
-            type: "NAVIGATE_TO",
-            href: url.pathname,
-          });
-
-          return new Response(null, { status: 204 });
-        }
-
-        logClient("warn", usedClientId, "Blocked invalid navigation", {
-          attemptedPath: route,
-        });
-
-        return new Response(null, {
-          status: 204,
-          statusText: "Navigation prevented",
-        });
-      }),
-    );
-  }
   // API routes
-  else if (route.startsWith("API")) {
+  if (route.startsWith("API")) {
     const subroute = route.replace("API", "");
     const routePath = subroute.split("?")[0];
 
@@ -380,6 +338,50 @@ self.addEventListener("fetch", (event) => {
         );
     }
   }
+  
+   // Navigation requests
+   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+      
+    logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
+      path: route || "/",
+      hasRoute: routeMap.has(url.pathname),
+    });
+
+    event.respondWith(
+      self.clients.get(clientId).then(async (client) => {
+        const usedClientId = client?.id ?? event.resultingClientId;
+
+        if (!client) {
+          console.clear();
+          logClient("warn", usedClientId, "Fresh client detected - serving root");
+          return caches.match(getRootUrl());
+        }
+
+        if (routeMap.has(url.pathname)) {
+          logClient("warn", usedClientId, "Navigating to registered route", {
+            path: route,
+          });
+
+          client.postMessage({
+            type: "NAVIGATE_TO",
+            href: url.pathname,
+          });
+
+          return new Response(null, { status: 204 });
+        }
+
+        logClient("warn", usedClientId, "Blocked invalid navigation", {
+          attemptedPath: route,
+        });
+
+        return new Response(null, {
+          status: 204,
+          statusText: "Navigation prevented",
+        });
+      }),
+    );
+  }
+  
   // Route map matches
   else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname);
