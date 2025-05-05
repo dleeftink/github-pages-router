@@ -191,6 +191,9 @@ self.addEventListener("message", async (event) => {
       routeMapSize: routeMap.size,
     });
 
+    if(routeMap.size === 0) { 
+      console.log("Attempt to load",await loadRouteMap())
+    }
     event.source.postMessage({
       type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
       size: routeMap.size,
