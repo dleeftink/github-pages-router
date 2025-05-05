@@ -1,6 +1,10 @@
-const CACHE_NAME = "github-pages-cache-v2";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
+
+// Global state for activation guard
+let activationComplete;
+let resolveActivation;
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
@@ -26,6 +30,10 @@ function getRootUrl() {
 
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...", event);
+
+  activationComplete = new Promise((resolve) => {
+    resolveActivation = resolve;
+  });
 
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
@@ -67,6 +75,16 @@ self.addEventListener("activate", (event) => {
   );
 
   event.waitUntil(self.clients.claim());
+  /*event.waitUntil(
+    Promise.resolve()
+      .then(() => self.clients.claim()) // Take control of all clients
+      .then(() => {
+        if (resolveActivation) {
+          resolveActivation(); // Resolve the activation guard
+          resolveActivation = null; // Clean up
+        }
+      })
+  );*/
 });
 
 async function loadRouteMap() {
@@ -132,6 +150,7 @@ self.addEventListener("message", async (event) => {
         event.source.postMessage({
           type: "MAP_READY",
         });
+        resolveActivation();
         storeTasks = 0;
       });
     }
@@ -157,7 +176,8 @@ self.addEventListener("message", async (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (self.registration.active) {
+  
+  event.waitUntil(activationComplete.then(()=>{
     const url = new URL(event.request.url);
     const route = url.pathname.replace(basePath, "");
     const CLIENT = `[${event.clientId.split("-")[0]}]`;
@@ -352,7 +372,7 @@ self.addEventListener("fetch", (event) => {
         }),
       );
     }
-  }
+  }))
 });
 
 /*
