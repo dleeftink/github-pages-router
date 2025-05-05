@@ -31,8 +31,10 @@
       console.group("Setup");
 
       // Register the service worker
-      this.regs = await navigator.serviceWorker.getRegistrations();
+      
       await this.registerServiceWorker();
+      await this.servePage();
+      setTimeout(() => this.navigateTo(this.basePath + "server"), 100);
     }
 
     async registerServiceWorker() {
@@ -40,6 +42,8 @@
         navigator.serviceWorker.addEventListener("controllerchange", (event) => {
           this.setupRoutes();
         });
+        
+        this.regs = await navigator.serviceWorker.getRegistrations();
 
         if (this.regs.length === 0) {
           try {
@@ -54,7 +58,7 @@
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
             this.setupMessageListeners();
-            this.servePage();
+            //this.servePage();
           } catch (error) {
             console.error("Service worker registration failed:", error);
           }
@@ -63,35 +67,32 @@
           console.log("Previous registrations", this.regs.length);
 
           this.setupMessageListeners();
-          this.servePage();
-          // this.resolveAppReady();
+    
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
       }
     }
 
-    servePage() {
-      navigator.serviceWorker.ready.then((registration) => {
-        //queueMicrotask(()=>
+    async servePage() {
+      navigator.serviceWorker.ready.then((registration) => { 
         registration.active.postMessage({
           type: "CHECK_MAP",
         });
-        //)
       });
 
-      this.mapReady.then(() => {
-        const atBasepath = location.href === this.basePath;
+      await this.mapReady;      
 
-        // Trigger view transition if the current location matches the route
-        if (document.referrer && atBasepath) {
-          console.log("Routed from referrer");
-          this.navigateTo(document.referrer);
-        } else {
-          console.log("Routed to index");
-          this.navigateTo(new URL(this.basePath).pathname);
-        }
-      });
+      const atBasepath = location.href === this.basePath;
+
+      // Trigger view transition if the current location matches the route
+      if (document.referrer && atBasepath) {
+        console.log("Routed from referrer");
+        this.navigateTo(document.referrer);
+      } else {
+        console.log("Routed to index");
+        this.navigateTo(new URL(this.basePath).pathname);
+      }
     }
 
     setupRoutes({ skip = false, navigate = true } = {}) {
@@ -169,7 +170,11 @@
       this.updateNavLinks(); // Update aria-current attributes
     }
 
-    navigateTo(href) {
+    async navigateTo(href) {
+        
+      if(this.transition) { 
+        await this.transition.finished;
+      }
       this.navigate({
         target: { href },
         preventDefault: () =>
@@ -185,7 +190,7 @@
     async viewTransition(url) {
       if (!document.startViewTransition) return await this.updateContent(url);
 
-      const transition = document.startViewTransition(async () => {
+      const transition = this.transition = document.startViewTransition(async () => {
         await this.updateContent(url);
       });
       await transition.finished;
@@ -194,6 +199,8 @@
     async updateContent(url) {
       const { contentElement } = this;
       if (!contentElement) return;
+
+      await this.mapReady;
 
       // No fallback for GHPRoute as this is handled by the ServiceWorker
       try {

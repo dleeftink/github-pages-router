@@ -1,9 +1,6 @@
-const CACHE_NAME = "github-pages-cache-v1";
+const CACHE_NAME = "github-pages-cache-v7";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
-
-// Global state for activation guard
-let isActivating = true;
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
@@ -29,8 +26,6 @@ function getRootUrl() {
 
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...", event);
-
-  isActivating = true;
 
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
@@ -147,7 +142,6 @@ self.addEventListener("message", async (event) => {
         event.source.postMessage({
           type: "MAP_READY",
         });
-        isActivating = false;
         storeTasks = 0;
       });
     }
@@ -158,7 +152,7 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data && event.data.type === "CHECK_MAP") {
-    console.log("I AM", self);
+    console.log("CHECKING", self, routeMap);
 
     if (routeMap.size > 0) {
       event.source.postMessage({
@@ -173,85 +167,73 @@ self.addEventListener("message", async (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  
-    const url = new URL(event.request.url);
-    const route = url.pathname.replace(basePath, "");
-    const CLIENT = `[${event.clientId.split("-")[0]}]`;
-    
-    // Block fetches during activation
-    if (isActivating) {
-      event.respondWith(
-        new Response("ServiceWorker not ready", {
-          status: 503,
-          statusText: "Service Unavailable",
-          headers: { "Content-Type": "text/plain" },
-        })
-      );
-      return;
-    }
-    /* FetchEvent Debugging */
-    
-    if (DEBUG) {
-      event.waitUntil(
-        self.clients
-          .get(event.clientId)
-          .then((originatingClient) => {
-            if (!originatingClient) {
-              console.log("No originating client found to send debug messages.");
-              return;
-            }
-    
-            // Extract serializable fields from the FetchEvent
-            const debugInfo = {
-              type: "TEST_EVENT",
-              url: event.request.url,
-              method: event.request.method,
-              mode: event.request.mode,
-              referrer: event.request.referrer,
-              destination: event.request.destination,
-              credentials: event.request.credentials,
-              redirect: event.request.redirect,
-              integrity: event.request.integrity,
-              isReload: event.isReload,
-              headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-              routeMap: JSON.stringify([...routeMap.entries()]),
-            };
-    
-            // Send the debug information to the originating client
-            try {
-              originatingClient.postMessage(debugInfo);
-              console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
-            } catch (error) {
-              console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
-            }
-          })
-          .catch((error) => {
-            console.error("Error retrieving originating client:", error);
-          }),
-      );
-    }
-    
-    // Check if the request is a navigation request
-    if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
-      event.respondWith(
-        self.clients.get(event.clientId).then((client) => {
-          const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
-          if (!client) {
-            console.clear();
-            console.warn(CLIENT, "Fresh client", event);
-            return caches.match(getRootUrl());
+  const url = new URL(event.request.url);
+  const route = url.pathname.replace(basePath, "");
+  const CLIENT = `[${event.clientId.split("-")[0]}]`;
+
+  /* FetchEvent Debugging */
+
+  if (DEBUG) {
+    event.waitUntil(
+      self.clients
+        .get(event.clientId)
+        .then((originatingClient) => {
+          if (!originatingClient) {
+            console.log("No originating client found to send debug messages.");
+            return;
           }
-          // const isFromClient = new URL(client.url).origin === url.origin;
-    
-          // Allow programmatic reloads to pass through [deprecated]
-          /*if (event.isReload) {
+
+          // Extract serializable fields from the FetchEvent
+          const debugInfo = {
+            type: "TEST_EVENT",
+            url: event.request.url,
+            method: event.request.method,
+            mode: event.request.mode,
+            referrer: event.request.referrer,
+            destination: event.request.destination,
+            credentials: event.request.credentials,
+            redirect: event.request.redirect,
+            integrity: event.request.integrity,
+            isReload: event.isReload,
+            headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+            routeMap: JSON.stringify([...routeMap.entries()]),
+          };
+
+          // Send the debug information to the originating client
+          try {
+            originatingClient.postMessage(debugInfo);
+            console.debug(`Debug info sent to originating client: ${originatingClient.id}`, originatingClient);
+          } catch (error) {
+            console.error(`Failed to send debug info to originating client ${originatingClient.id}:`, error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error retrieving originating client:", error);
+        }),
+    );
+  }
+
+  // Check if the request is a navigation request
+  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+    event.respondWith(
+      self.clients.get(event.clientId).then((client) => {
+        const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
+        if (!client) {
+          console.clear();
+          console.warn(CLIENT, "Fresh client", event);
+          return caches.match(getRootUrl());
+        }
+        // const isFromClient = new URL(client.url).origin === url.origin;
+
+        // Allow programmatic reloads to pass through [deprecated]
+        /*if (event.isReload) {
             console.warn(CLIENT, "Programmatic reload detected. Allowing navigation to", '"/' + route + '"');
             return fetch(event.request); // Pass through the reload request
           }*/
-    
-          // Get the client's URL
-    
-          /*const clientUrl = client ? new URL(client.url).href : null;
+
+        // Get the client's URL
+
+        /*const clientUrl = client ? new URL(client.url).href : null;
     
           // Check if it's a reload specifically
           const isReload = event.request.referrer === "" || event.request.referrer === clientUrl || event.request.referrer.endsWith("/");
@@ -262,112 +244,112 @@ self.addEventListener("fetch", (event) => {
             event.respondWith(fetch(event.request));
             return;
           }*/
-    
-          if (routeMap.has(url.pathname)) {
-            console.warn(CLIENT, "Navigated to", '"/' + route + '"');
-            client.postMessage({
-              type: "NAVIGATE_TO",
-              href: url.pathname,
+
+        if (routeMap.has(url.pathname)) {
+          console.warn(CLIENT, "Navigated to", '"/' + route + '"');
+          client.postMessage({
+            type: "NAVIGATE_TO",
+            href: url.pathname,
+          });
+        }
+        console.warn(CLIENT, "Attempted to navigate to non-valid route:", '"/' + route + '"');
+        return new Response(null, {
+          status: 204, // No Content
+          statusText: "Navigation prevented",
+        });
+      }),
+    );
+  } else if (route.startsWith("API")) {
+    const subroute = route.replace("API", "");
+    let response, data;
+
+    // Extract the specific route path for matching
+    const routePath = subroute.split("?")[0]; // Remove query parameters if any
+
+    switch (routePath) {
+      case "/hello":
+        data = {
+          message: "Hello, world!",
+          timestamp: new Date().toISOString(),
+        };
+        response = new Response(JSON.stringify(data), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+          statusText: "OK",
+        });
+        break;
+
+      case "/clients":
+        response = (async () => {
+          try {
+            const clientList = await clients.matchAll();
+            const formattedClients = clientList.map((client) => ({
+              id: client.id,
+              url: client.url,
+              type: client.type,
+              visibilityState: client.visibilityState,
+            }));
+
+            return new Response(JSON.stringify(formattedClients), {
+              headers: { "Content-Type": "application/json" },
+              status: 200,
+              statusText: "OK",
+            });
+          } catch (error) {
+            // Handle errors gracefully
+            return new Response(JSON.stringify({ error: "Failed to fetch clients" }), {
+              headers: { "Content-Type": "application/json" },
+              status: 500,
+              statusText: "Internal Server Error",
             });
           }
-          console.warn(CLIENT, "Attempted to navigate to non-valid route:", '"/' + route + '"');
-          return new Response(null, {
-            status: 204, // No Content
-            statusText: "Navigation prevented",
-          });
-        }),
-      );
-    } else if (route.startsWith("API")) {
-      const subroute = route.replace("API", "");
-      let response, data;
-    
-      // Extract the specific route path for matching
-      const routePath = subroute.split("?")[0]; // Remove query parameters if any
-    
-      switch (routePath) {
-        case "/hello":
-          data = {
-            message: "Hello, world!",
-            timestamp: new Date().toISOString(),
-          };
-          response = new Response(JSON.stringify(data), {
-            headers: { "Content-Type": "application/json" },
-            status: 200,
-            statusText: "OK",
-          });
-          break;
-    
-        case "/clients":
-          response = (async () => {
-            try {
-              const clientList = await clients.matchAll();
-              const formattedClients = clientList.map((client) => ({
-                id: client.id,
-                url: client.url,
-                type: client.type,
-                visibilityState: client.visibilityState,
-              }));
-    
-              return new Response(JSON.stringify(formattedClients), {
-                headers: { "Content-Type": "application/json" },
-                status: 200,
-                statusText: "OK",
-              });
-            } catch (error) {
-              // Handle errors gracefully
-              return new Response(JSON.stringify({ error: "Failed to fetch clients" }), {
-                headers: { "Content-Type": "application/json" },
-                status: 500,
-                statusText: "Internal Server Error",
-              });
-            }
-          })();
-          break;
-    
-        default:
-          // Handle unknown routes
-          response = new Response(null, {
-            status: 204, // No Content
-            statusText: "Non-existing API",
-          });
-    
-          // Status 200 in case of empty object
-          /*response = new Response(JSON.stringify({}), {
+        })();
+        break;
+
+      default:
+        // Handle unknown routes
+        response = new Response(null, {
+          status: 204, // No Content
+          statusText: "Non-existing API",
+        });
+
+        // Status 200 in case of empty object
+        /*response = new Response(JSON.stringify({}), {
           headers: { 'Content-Type': 'application/json' },
             status: 200,
             statusText: 'OK',
           });*/
-          break;
-      }
-    
-      event.respondWith(response);
-    } else if (routeMap.has(url.pathname)) {
-      const contentPath = routeMap.get(url.pathname);
-    
-      event.respondWith(
-        caches.match(contentPath).then(async (cachedResponse) => {
-          if (cachedResponse) {
-            console.warn(
-              CLIENT,
-              "ROUTE CACHE HIT DIRECTED FROM",
-              '"/' + url.pathname.replace(basePath, "") + '"',
-              "TO",
-              '"/' + contentPath.replace(basePath, "") + '"',
-            );
-            return cachedResponse; // Serve from cache
-          }
-          return fetch(contentPath); // Fallback to network
-        }),
-      );
-    } else {
-      event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            console.warn(CLIENT, "ASSET CACHE HIT AT", url);
-            return cachedResponse;
-          }
-          console.warn(CLIENT, "FETCHED FROM SOURCE", url);
-          return fetch(event.request); /*.then(response=>{
+        break;
+    }
+
+    event.respondWith(response);
+  } else if (routeMap.has(url.pathname)) {
+    const contentPath = routeMap.get(url.pathname);
+
+    event.respondWith(
+      caches.match(contentPath).then(async (cachedResponse) => {
+        if (cachedResponse) {
+          console.warn(
+            CLIENT,
+            "ROUTE CACHE HIT DIRECTED FROM",
+            '"/' + url.pathname.replace(basePath, "") + '"',
+            "TO",
+            '"/' + contentPath.replace(basePath, "") + '"',
+          );
+          return cachedResponse; // Serve from cache
+        }
+        return fetch(contentPath); // Fallback to network
+      }),
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          console.warn(CLIENT, "ASSET CACHE HIT AT", url);
+          return cachedResponse;
+        }
+        console.warn(CLIENT, "FETCHED FROM SOURCE", url);
+        return fetch(event.request); /*.then(response=>{
 	  		if(!response) {
 	  			return new Response(null, {
                 status: 204, // No Content
@@ -376,10 +358,9 @@ self.addEventListener("fetch", (event) => {
 	  		}
 	  		return response;
 	  	})*/
-        }),
-      );
-    }
-  
+      }),
+    );
+  }
 });
 
 /*
