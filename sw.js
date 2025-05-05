@@ -3,8 +3,7 @@ const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = false;
 
 // Global state for activation guard
-let activationComplete;
-let resolveActivation;
+let isActivating = true;
 
 let routeMap = new Map(); // In-memory route map
 let basePath = "/"; // Default base path
@@ -31,9 +30,7 @@ function getRootUrl() {
 self.addEventListener("install", (event) => {
   console.log("Service worker installing...", event);
 
-  activationComplete = new Promise((resolve) => {
-    resolveActivation = resolve;
-  });
+  isActivating = true;
 
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
@@ -150,7 +147,7 @@ self.addEventListener("message", async (event) => {
         event.source.postMessage({
           type: "MAP_READY",
         });
-        resolveActivation();
+        isActivating = false;
         storeTasks = 0;
       });
     }
@@ -177,11 +174,21 @@ self.addEventListener("message", async (event) => {
 
 self.addEventListener("fetch", (event) => {
   
-  event.waitUntil(activationComplete.then(()=>{
     const url = new URL(event.request.url);
     const route = url.pathname.replace(basePath, "");
     const CLIENT = `[${event.clientId.split("-")[0]}]`;
     
+    // Block fetches during activation
+    if (isActivating) {
+      event.respondWith(
+        new Response("ServiceWorker not ready", {
+          status: 503,
+          statusText: "Service Unavailable",
+          headers: { "Content-Type": "text/plain" },
+        })
+      );
+      return;
+    }
     /* FetchEvent Debugging */
     
     if (DEBUG) {
@@ -372,7 +379,7 @@ self.addEventListener("fetch", (event) => {
         }),
       );
     }
-  }))
+  
 });
 
 /*
