@@ -88,7 +88,7 @@
       const atBasepath = location.href === this.basePath;
 
       // Trigger view transition if the current location matches the route
-      if (document.referrer && new URL(document.referrer).pathname === new URL(this.basePath).pathname && atBasepath) {
+      if (document.referrer /*&& new URL(document.referrer).pathname === new URL(this.basePath).pathname*/ && atBasepath) {
         console.log("Routed from referrer",document.referrer);
         this.navigateTo(new URL(document.referrer).pathname);
       } else {
