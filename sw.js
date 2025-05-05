@@ -185,7 +185,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0) && !route.startsWith("API")) {
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
