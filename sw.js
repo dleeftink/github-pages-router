@@ -209,6 +209,7 @@ self.addEventListener("fetch", (event) => {
   
   // Navigation requests
   if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+      
     logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
       path: route || "/",
       hasRoute: routeMap.has(url.pathname),
@@ -362,11 +363,27 @@ self.addEventListener("fetch", (event) => {
           path: url.pathname,
         });
 
-        return fetch(event.request);
+        return fetch(event.request).then(async (response)=>{
+            
+          // If the request is cacheable, store it
+          if (response.ok && shouldCacheAsset(event.request)) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, response.clone());
+          }
+          return response
+
+        })
       }),
     );
   }
 });
+
+function shouldCacheAsset(request) {
+  const url = new URL(request.url);
+  const ext = url.pathname.split(".").pop().toLowerCase();
+  return ["jpg", "jpeg", "png", "gif", "webp", "woff", "woff2", "ttf", "eot"].includes(ext);
+}
+
 
 /*
 event.waitUntil(
