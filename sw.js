@@ -2,6 +2,26 @@ const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
+// Define the assets to cache
+const assets = [
+  getRootUrl(),
+  getRootUrl() + "style.css",
+  "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
+];
+
+let routeMap = new Map();
+let basePath = "/";
+
+if (self.location) {
+  basePath = self.location.pathname.substring(0, self.location.pathname.indexOf("/", 1) + 1);
+}
+
+// === Helper functions ===
+function getRootUrl() {
+  return self.location.href.substring(0, self.location.href.lastIndexOf("/") + 1);
+}
+
 // === Logging Utilities ===
 function getClientPrefix(id = "") {
   return `[${id.split("-")[0]}]`;
@@ -22,25 +42,6 @@ function logClient(level, id, ...args) {
   console[level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
-// Define the assets to cache
-const assets = [
-  getRootUrl(),
-  getRootUrl() + "style.css",
-  "https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
-  "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap",
-];
-
-let routeMap = new Map();
-let basePath = "/";
-
-if (self.location) {
-  basePath = self.location.pathname.substring(0, self.location.pathname.indexOf("/", 1) + 1);
-}
-
-// Helper function to determine the root folder URL
-function getRootUrl() {
-  return self.location.href.substring(0, self.location.href.lastIndexOf("/") + 1);
-}
 
 // === Lifecycle Events ===
 self.addEventListener("install", (event) => {
@@ -115,7 +116,7 @@ async function loadRouteMap() {
 }
 
 /*let loadTasks = 0;
-// === Route Map Management ===
+// === Route Map Management (Batch) ===
 async function loadRouteMap() {
   loadTasks++;
 
