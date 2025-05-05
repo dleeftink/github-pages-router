@@ -189,7 +189,7 @@ self.addEventListener("message", async (event) => {
       return;
     }
 
-    queueMap.set(href, path);
+    queueMap.set(href, path/*+'?t' + Date.now()*/);
     logClient("log", clientId, "Route queued", {
       path,
       queueSize: queueMap.size,
@@ -209,7 +209,7 @@ self.addEventListener("message", async (event) => {
           const cache = await caches.open(CACHE_NAME);
           const uniquePaths = [...new Set(queueMap.values())];
 
-          cache.addAll(uniquePaths);
+          /*await*/ cache.addAll(uniquePaths); // => add asynchronously
           routeMap = new Map([...routeMap, ...queueMap]);
 
           await saveRouteMap();
@@ -240,14 +240,14 @@ self.addEventListener("message", async (event) => {
       
       queueMicrotask(async()=>{
         try { 
-          if(routeMap.size === 0) { 
+          /*if(routeMap.size === 0) { 
             await loadRouteMap();
             if(routeMap.size > 0) {
               logClient("log", clientId, "Route map check successful and reloaded", {
                 routeMap
               });
             }
-          }
+          }*/
         
           event.source.postMessage({
             type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",

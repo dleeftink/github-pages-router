@@ -35,7 +35,7 @@
       await this.registerServiceWorker();
       await this.servePage();
       
-      // setTimeout(() => this.navigateTo(this.basePath + "server"), 100);
+      // setTimeout(async() => await this.navigateTo(this.basePath + "server"), 2);
     }
 
     async registerServiceWorker() {
@@ -172,7 +172,7 @@
     }
 
     async navigateTo(href) {
-        
+ 
       if(this.transition) { 
         await this.transition.finished;
       }
@@ -190,7 +190,7 @@
 
     async viewTransition(url) {
       if (!document.startViewTransition) return await this.updateContent(url);
-
+      
       const transition = this.transition = document.startViewTransition(async () => {
         await this.updateContent(url);
       });
