@@ -31,6 +31,7 @@
       console.group("Setup");
 
       // Register the service worker
+      this.regs = await navigator.serviceWorker.getRegistrations();
       
       await this.registerServiceWorker();
       await this.servePage();
@@ -42,8 +43,6 @@
         navigator.serviceWorker.addEventListener("controllerchange", (event) => {
           this.setupRoutes();
         });
-        
-        this.regs = await navigator.serviceWorker.getRegistrations();
 
         if (this.regs.length === 0) {
           try {
