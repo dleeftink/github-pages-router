@@ -34,7 +34,7 @@
       
       await this.registerServiceWorker();
       await this.servePage();
-      setTimeout(() => this.navigateTo(this.basePath + "server"), 100);
+      // setTimeout(() => this.navigateTo(this.basePath + "server"), 100);
     }
 
     async registerServiceWorker() {
