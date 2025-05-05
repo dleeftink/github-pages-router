@@ -9,13 +9,15 @@ function getClientPrefix(id = "") {
 
 function logBase(level, ...args) {
   if (!DEBUG) return;
-  console[level]("[ServiceWorker]", ...args);
+  console[level]("[ServiceWorker]",  ...args.filter(arg=>!(arg instanceof Object)));
+  if([...args].filter(arg=>(arg instanceof Object)).length) console[level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 function logClient(level, id, ...args) {
   if (!DEBUG) return;
   const prefix = getClientPrefix(id);
-  console[level](`[ServiceWorker] ${prefix}`, ...args);
+  console[level](`[ServiceWorker] ${prefix}`, ...args.filter(arg=>!(arg instanceof Object)));
+  if([...args].filter(arg=>(arg instanceof Object)).length) console[level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 // Define the assets to cache
@@ -87,28 +89,44 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+let loadTasks = 0;
 // === Route Map Management ===
 async function loadRouteMap() {
-  logBase("debug", "Loading route map from cache...");
+  loadTasks++;
 
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match(ROUTE_MAP_KEY);
+  if (loadTasks === 1) {
+    logBase("debug", "Loading route map from cache...");
 
-    if (response) {
-      const data = await response.json();
-      routeMap = new Map(data);
-      logBase("log", "Route map loaded successfully", {
-        entries: routeMap.size,
-        sampleEntry: routeMap.entries().next().value,
-      });
-    } else {
-      logBase("warn", "No route map found in cache - using empty map");
-    }
-  } catch (error) {
-    logBase("error", "Failed to load route map:", error);
+    queueMicrotask(async () => {
+      try {
+        if (routeMap.size > 0) {
+          logBase("log", "Route map already in memory", {
+            routeMap,
+          });
+          return;
+        }
+        const cache = await caches.open(CACHE_NAME);
+        const response = await cache.match(ROUTE_MAP_KEY);
+
+        if (response) {
+          const data = await response.json();
+          routeMap = new Map(data);
+          logBase("log", "Route map loaded successfully", {
+            routes: routeMap.size,
+            sample: routeMap.entries().next().value,
+          });
+        } else {
+          logBase("warn", "No route map found in cache");
+        }
+      } catch (error) {
+        logBase("error", "Failed to load route map:", error);
+      } finally {
+        loadTasks = 0;
+      }
+    });
   }
 }
+
 
 async function saveRouteMap() {
   logBase("debug", "Saving route map to cache...");
@@ -122,7 +140,7 @@ async function saveRouteMap() {
 
     await cache.put(ROUTE_MAP_KEY, response);
     logBase("log", "Route map saved successfully", {
-      entries: routeMap.size,
+      routes: routeMap.size,
       cacheName: CACHE_NAME,
     });
   } catch (error) {
@@ -133,6 +151,7 @@ async function saveRouteMap() {
 // === Message Handling ===
 let queueMap = new Map();
 let storeTasks = 0;
+let loadChecks = 0;
 
 self.addEventListener("message", async (event) => {
   const clientId = event.source.id;
@@ -187,17 +206,35 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data?.type === "CHECK_MAP") {
-    logClient("debug", clientId, "Route map check requested", {
-      routeMapSize: routeMap.size,
-    });
 
-    if(routeMap.size === 0) { 
-      console.log("Attempt to load",await loadRouteMap())
+    loadChecks++
+    if(loadChecks===1) {
+      logClient("debug", clientId, "Route map check requested", {
+        routeMapSize: routeMap.size,
+      });
+      
+      queueMicrotask(async()=>{
+        try { 
+          if(routeMap.size === 0) { 
+            await loadRouteMap();
+            if(routeMap.size > 0) {
+              logClient("log", clientId, "Route map check successful and reloaded", {
+                routeMap
+              });
+            }
+          }
+        
+          event.source.postMessage({
+            type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
+            size: routeMap.size,
+          });
+        } catch (error) {
+          logClient("error", clientId, "Route map check failed:", error); 
+        } finally {
+          loadChecks = 0;
+        }
+      })
     }
-    event.source.postMessage({
-      type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
-      size: routeMap.size,
-    });
   }
 });
 

@@ -67,6 +67,7 @@
           console.log("Previous registrations", this.regs.length);
 
           this.setupMessageListeners();
+
     
         }
       } else {
@@ -82,7 +83,7 @@
       });
 
       await this.mapReady;      
-
+      console.groupEnd();
       const atBasepath = location.href === this.basePath;
 
       // Trigger view transition if the current location matches the route
@@ -112,7 +113,6 @@
           type: "STORE_MAP",
         });
         console.log("Service worker initialised successfully");
-        console.groupEnd();
         return registration;
       });
     }
@@ -268,25 +268,6 @@
         return;
       }
 
-      /*navigator.serviceWorker.controller.postMessage({
-              type: "ADD_ROUTE",
-              href: new URL(href, document.baseURI).pathname,
-              content: new URL(this.router.basePath).pathname + content.slice(2), //new URL(content, document.baseURI).toString(),
-            });*/
-
-      /*
-      const atBasepath = this.router.basePath + href.slice(2) === this.router.basePath;
-            
-            // Trigger view transition if the current location matches the route
-            if(document.referrer && atBasepath) {
-              console.log("Routed from referrer")
-              this.router.navigateTo(document.referrer)
-	        } else if (new URL(href, document.baseURI).toString() === location.toString()) {
-              console.log("Routed from location")
-              this.router.navigateTo(href);
-            }*/
-
-      // Track this route in the router's registration tracker
       // this.router.addRoute({href,path});
     }
   }
