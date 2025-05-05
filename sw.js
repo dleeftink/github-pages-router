@@ -240,14 +240,14 @@ self.addEventListener("message", async (event) => {
       
       queueMicrotask(async()=>{
         try { 
-          /*if(routeMap.size === 0) { 
+          if(routeMap.size === 0) { 
             await loadRouteMap();
             if(routeMap.size > 0) {
               logClient("log", clientId, "Route map check successful and reloaded", {
                 routeMap
               });
             }
-          }*/
+          }
         
           event.source.postMessage({
             type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
@@ -339,8 +339,8 @@ self.addEventListener("fetch", (event) => {
     }
   }
   
-   // Navigation requests
-   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+  // Navigation requests
+  else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
       
     logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
       path: route || "/",
@@ -356,6 +356,7 @@ self.addEventListener("fetch", (event) => {
           logClient("warn", usedClientId, "Fresh client detected - serving root");
           return caches.match(getRootUrl());
         }
+        
 
         if (routeMap.has(url.pathname)) {
           logClient("warn", usedClientId, "Navigating to registered route", {
@@ -366,9 +367,12 @@ self.addEventListener("fetch", (event) => {
             type: "NAVIGATE_TO",
             href: url.pathname,
           });
-
           return new Response(null, { status: 204 });
         }
+        
+        /*if(!new URL(event.request.referrer).pathname.startsWith(basePath)) {
+           return fetch(event.request)
+        }*/
 
         logClient("warn", usedClientId, "Blocked invalid navigation", {
           attemptedPath: route,
@@ -434,6 +438,7 @@ self.addEventListener("fetch", (event) => {
             const cache = await caches.open(CACHE_NAME);
             await cache.put(event.request, response.clone());
           }
+          // TO DO: 404's on basePath
           return response
 
         })
