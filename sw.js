@@ -266,12 +266,12 @@ self.addEventListener("message", async (event) => {
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  const route = url.pathname.replace(basePath, "");
+  const route = url.pathname.replace(basePath.slice(0,-1), "");
   const clientId = event.clientId;
   
   // API routes
-  if (route.startsWith("API")) {
-    const subroute = route.replace("API", "");
+  if (route.startsWith("/API")) {
+    const subroute = route.replace("/API", "");
     const routePath = subroute.split("?")[0];
 
     logClient("debug", clientId, "API request received", {
