@@ -34,6 +34,7 @@
       
       await this.registerServiceWorker();
       await this.servePage();
+      
       // setTimeout(() => this.navigateTo(this.basePath + "server"), 100);
     }
 
@@ -64,7 +65,7 @@
           }
         } else {
           console.log("Service worker registration skipped");
-          console.log("Previous registrations", this.regs.length);
+          console.log("Previous registrations:", this.regs.length);
 
           this.setupMessageListeners();
 
