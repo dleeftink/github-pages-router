@@ -53,7 +53,7 @@
             const basePathName = new URL(this.basePath).pathname;
 
             const context = this;
-            const swPath = `${basePathName}sw.js`;
+            const swPath = `${basePathName}sw.js?t=${Date.now()}`;
 
             // Register the service worker with the correct scope
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
@@ -88,7 +88,7 @@
       const atBasepath = location.href === this.basePath;
 
       // Trigger view transition if the current location matches the route
-      if (document.referrer && atBasepath) {
+      if (document.referrer && new URL(document.referrer).pathname === new URL(this.basePath).pathname && atBasepath) {
         console.log("Routed from referrer",document.referrer);
         this.navigateTo(new URL(document.referrer).pathname);
       } else {
