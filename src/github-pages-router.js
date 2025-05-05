@@ -37,7 +37,12 @@
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.addEventListener("controllerchange", event=> { 
+          this.setupRoutes({navigate:true});
+        });
+        
         if (this.regs.length === 0) {
+          
           try {
             console.log("Previous registrations:", this.regs.length);
             // Use document.baseURI to determine the base path
@@ -49,15 +54,15 @@
             // Register the service worker with the correct scope
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
-
             this.setupMessageListeners();
-            this.setupRoutes();
+            await this.mapReady;
+            this.setupRoutes({skip:true});
           } catch (error) {
             console.error("Service worker registration failed:", error);
           }
         } else {
           console.log("Service worker registration skipped");
-          console.log("Previous registrations:", this.regs.length);
+          console.log("Previous registrations:", this.regs.length,this.regs.at(-1).active.state);
 
           this.setupMessageListeners();
           this.setupRoutes({ skip: true });
@@ -74,10 +79,12 @@
 
         .then((registration) => {
           if (skip === true) { 
-            throw new Error("Skip indexing");
-            // console.warn("Skip indexng");
-            // this.resolveMapReady();
-            // return registration;
+            // throw new Error("Skip indexing");
+            console.warn("Skip indexing");
+            registration.active.postMessage({
+              type: "CHECK_MAP",
+            });
+            return registration;
             
           }
           let routes = this.querySelectorAll(":scope > ghp-route");
@@ -101,12 +108,12 @@
           console.groupEnd();
           return registration;
         })
-        .catch((err) => {
+        /*.catch((err) => {
            this.resolveMapReady(); // => there be dragons
            console.warn(err)
-         })
+         })*/
         
-        .then((registration) => {
+        /*.then((registration) => {
           if (navigate === false) { 
             throw new Error("Skip delegation");
           }
@@ -127,11 +134,10 @@
           };
           registration.active.addEventListener("statechange", refresh);
           return registration;
-        })
+        })*/
 
         .finally (async (registration) => {
           
-          await this.mapReady;
           if (navigate === false) { 
             throw new Error("Stay on path");
           }
@@ -142,7 +148,7 @@
             console.log("Routed from referrer");
             this.navigateTo(document.referrer);
           } else {
-            console.log("Routed to index");
+            console.log("Routed to index [does it recurse anymores?]");
             this.navigateTo(new URL(this.basePath).pathname);
           }
         })
@@ -159,6 +165,11 @@
         }
         if (event.data.type === "MAP_READY") {
           this.resolveMapReady();
+        }
+        if (event.data.type === "MAP_NOT_READY") {
+          this.mapReady = new Promise((resolve) => {
+            this.resolveMapReady = resolve;
+          });
         }
       });
       console.log("Client Listeners activated");

@@ -127,13 +127,18 @@ self.addEventListener("message", async (event) => {
     });
   }
 
-  /*if (event.data && event.data.type === "CHECK_MAP") {
+  if (event.data && event.data.type === "CHECK_MAP") {
+    console.log("I AM",self);
     if(routeMap.size>0) {
       event.source.postMessage({
         type: "MAP_READY",
       });
+    } else {
+      event.source.postMessage({
+        type: "MAP_NOT_READY",
+      });
     }
-  }*/
+  }
   
 });
 
@@ -185,7 +190,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Check if the request is a navigation request
-  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0) && !route.startsWith("API")) {
+  if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
     event.respondWith(
       self.clients.get(event.clientId).then((client) => {
         const CLIENT = `[${(client?.id ?? event.resultingClientId).split("-")[0]}]`;
@@ -319,6 +324,7 @@ self.addEventListener("fetch", (event) => {
           console.warn(CLIENT, "ASSET CACHE HIT AT", url);
           return cachedResponse;
         }
+        console.warn(CLIENT, "FETCH FROM SOURCE AT", url);
         return fetch(event.request); /*.then(response=>{
 			if(!response) {
 				return new Response(null, {
