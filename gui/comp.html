@@ -32,13 +32,13 @@
       
       <template mixin="click-dec">
         <script on="click">
-          this.parentNode.decrease();
+          event.target.parentNode.count--;
         </script>
       </template>
 
       <template mixin="click-inc">
         <script on="click">
-          this.parentNode.increase();
+          event.target.parentNode.count--;
         </script>
       </template>
       
@@ -50,23 +50,21 @@
     
       <template mixin="counter">
         <script on="connect" once>
-          const hash = this.tagName+'-'+djb2Hash(this.outerHTML)
-         
+        
+          let hash = this.tagName+'-'+djb2Hash(this.outerHTML)
           let count = parseInt(sessionStorage.getItem(hash) ?? host.getAttribute('value'));
-          // const slot = root.querySelector("slot");
-          // const nodes = slot.assignedNodes({ flatten: true });
-          // const name = nodes[0].textContent;
-            
-          host.setAttribute("value", count)
           
-          root.decrease = function (arg) {
-            host.setAttribute("value", (count -= 1));
-            setTimeout(()=>sessionStorage.setItem(hash,count))
-          };
-          root.increase = function (arg) {
-            host.setAttribute("value", (count += 1));
-            setTimeout(()=>sessionStorage.setItem(hash,count))
-          };
+          Object.defineProperty(root,'count',{
+            get: ()=>count,
+            set: (val)=> (
+              host.setAttribute("value", val),
+              setTimeout(()=>sessionStorage.setItem(hash,count)),
+              count = val
+            ),
+          })
+          
+          root.count = count;
+          
         </script>
       </template>
 
@@ -75,8 +73,7 @@
           this.def = document.querySelector(`template[component=${host.tagName.toLowerCase()}]`);
 
           this.observed = this.def
-            .getAttribute("observe")
-            .split(" ")
+            .getAttribute("observe").split(" ")
             .map((attr) => ({detail:{ name:attr, newValue: host.getAttribute(attr) }}));
 
           this.targets = root.querySelectorAll("[observe]");
@@ -90,27 +87,12 @@
         <script on="attributeChanged">
           if(!this.targets) return;
           this.targets.forEach((tgt) => tgt.dispatchEvent(attributeChange(event)))
-          /*Promise.all(['num-display'].map(tag => customElements.whenDefined(tag)))
-            .then(() => {
-            console.log('All custom elements are defined.');
-            // Now it's safe to interact with them
-          });*/
         </script>
-      </template>
-
-      
-      <template component="inc-dec-alpha" mixins="methods" forminput>
-        <button>+<script on="click">root.increase(root)</script></button>
-        <span><slot>Click</slot>s:<slot></slot></span>
-        <button>-<script on="click">root.decrease(root)</script></button>
       </template>
       
     </templates>
     
   <script>
-    function globalMethod(ctx) {
-      console.log("scoped", ctx);
-    }
     function attributeChange(event) {
       return new CustomEvent(event.detail.name + ".change", {
         detail: event.detail,
