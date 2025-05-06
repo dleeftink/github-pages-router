@@ -31,6 +31,9 @@
         <inc-button></inc-button>
         <num-output></num-output>
         <dec-button></dec-button>
+        <script on="connect">
+          if(!host.getAttribute('value')) host.setAttribute("value",0);
+        </script>
       </template>
       
       <template mixin="click-dec">
@@ -47,7 +50,7 @@
       
       <template mixin="click-new">
         <script on="value.change">
-          host.textContent = event.detail.newValue;
+          host.textContent = host.parentNode.count;
         </script>
         <script on="connect">
           host.classList.add('change-target')
@@ -100,7 +103,7 @@
       </template>
 
       <template mixin="dispatch">
-        <script on="connect" once>
+        <script on="connect">
 
           this.targets = root.querySelectorAll('.change-target')
           this.targets.forEach((tgt) =>
