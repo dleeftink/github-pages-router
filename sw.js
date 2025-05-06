@@ -263,20 +263,41 @@ self.addEventListener("message", async (event) => {
   }
 });
 
+let last; // store last globally => not for individual client use
+
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
   const clientId = event.clientId;
+  const rootUrl = getRootUrl()
   
+  //if(new URL(event.request.referrer).pathname.startsWith(basePath) === false) return;
   // API routes
-  if (route.startsWith("/API")) {
+  if (route.startsWith("/API") && url.href.startsWith(rootUrl)) {
     const subroute = route.replace("/API", "");
     const routePath = subroute.split("?")[0];
+  // console.log("SOME TEST", new URL(event.request.referrer).pathname);
 
     logClient("debug", clientId, "API request received", {
       path: routePath,
     });
+    
+    const debugInfo = {
+       type: "TEST_EVENT",
+       url: event.request.url,
+       method: event.request.method,
+       mode: event.request.mode,
+       referrer: event.request.referrer,
+       destination: event.request.destination,
+       credentials: event.request.credentials,
+       redirect: event.request.redirect,
+       integrity: event.request.integrity,
+       isReload: event.isReload,
+       headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+       // routeMap: JSON.stringify([...routeMap.entries()]),
+       last
+    };
 
     switch (routePath) {
       case "/hello":
@@ -285,6 +306,7 @@ self.addEventListener("fetch", (event) => {
             JSON.stringify({
               message: "Hello, world!",
               timestamp: new Date().toISOString(),
+              debugInfo//referrer: 'oi',//new URL(event.request.referrer).pathname
             }),
             {
               headers: { "Content-Type": "application/json" },
@@ -339,9 +361,14 @@ self.addEventListener("fetch", (event) => {
     }
   }
   
+  // Ignore out of scope requests
+  else if (event.request.referrer.startsWith(rootUrl) === false) { return }
+  
   // Navigation requests
-  else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
-      
+  else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
+    
+    last = url;
+    
     logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
       path: route || "/",
       hasRoute: routeMap.has(url.pathname),
@@ -388,8 +415,8 @@ self.addEventListener("fetch", (event) => {
   
   // Route map matches
   else if (routeMap.has(url.pathname)) {
-    const contentPath = routeMap.get(url.pathname);
-
+    const contentPath = routeMap.get(url.pathname); last = url;
+    
     logClient("warn", clientId, "Route map match found", {
       original: route,
       mappedTo: contentPath.replace(basePath, ""),
@@ -445,6 +472,7 @@ self.addEventListener("fetch", (event) => {
       }),
     );
   }
+  
 });
 
 function shouldCacheAsset(request) {
