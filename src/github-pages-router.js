@@ -1,3 +1,9 @@
+/*window.addEventListener('load', () => {
+  const initialPath = window.location.pathname;
+  //history.replaceState({ page: 'home' }, '', initialPath); // Replace default entry
+  console.log("INITIAL PATH",initialPath)
+});*/
+
 (function GitHubPagesRouter() {
   function defineComponent(elementName, ElementClass) {
     if (customElements.get(elementName)) return;
@@ -33,13 +39,14 @@
       console.warn("Rendered from", document.referrer || "index.html");
       console.group("Setup");
       // Register the service worker
-      
+
       await this.registerServiceWorker();
       await this.servePage();
       
       const basePath = new URL(this.basePath).pathname;
       
       // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
+
     }
 
     async registerServiceWorker() {
@@ -102,7 +109,7 @@
     setupRoutes({ skip = false, navigate = true } = {}) {
       console.log("Setting up routes");
       navigator.serviceWorker.ready.then((registration) => {
-        let routes = this.querySelectorAll(":scope > ghp-route");
+        let routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
         routes.forEach(({ href, path }) => {
@@ -140,7 +147,11 @@
         }
         if (event.data.type === "CONTENT_READY") {
           const href = event.data.href.replace("/*/", "/");
-          this.navigateTo(href);
+          const sel = href.replace(new URL(this.basePath).pathname,'') //href.split('/').at(-1);
+          // this.navigateTo(href);
+          let el = this.querySelector(`ghp-navlink > a[href$="/${sel}"]`);
+          setTimeout(()=>el.textContent = '[+] ' +  el.textContent,1000);
+
         }
         
       });
@@ -191,7 +202,7 @@
           content:this.contentElement.innerHTML,
         },
         "",
-        href,
+        href ?? window.location.href, 
       );
     }
     
@@ -218,6 +229,8 @@
               "/"+href.replace(new URL(document.baseURI).pathname, ""),
             ),
         });
+        
+        this.appendHistory(href);
       };
     
       // Chain the task to the queue
