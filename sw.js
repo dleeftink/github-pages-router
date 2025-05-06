@@ -470,17 +470,9 @@ self.addEventListener("fetch", (event) => {
             cache.put(event.request, response.clone());
           }
           
-          if(!response.ok) {
-           
+          /*if(!response.ok) {
             return caches.match(routeMap.get(basePath))
-            
-            // return new Response(null, { status: 204 });
-            /*client.postMessage({
-              type: "NAVIGATE_TO",
-              href: basePath
-            });
-            return new Response(null, { status: 204 });*/
-          };
+          };*/
 
           return response
 

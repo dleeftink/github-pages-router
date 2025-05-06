@@ -29,7 +29,6 @@
 
       console.warn("Rendered from", document.referrer || "index.html");
       console.group("Setup");
-
       // Register the service worker
       
       await this.registerServiceWorker();
@@ -165,10 +164,26 @@
       event.preventDefault();
       const { href } = event.target;
       if (href === document.location.toString()) return;
-      const prevContent = [...(window.history?.state?.prevContent ?? []), this.contentElement.innerHTML];
-      history.pushState({ prevUrl: window.location.href, prevTitle: this.contentElement.querySelector("h2")?.textContent ?? "", prevContent }, "", href);
+      this.appendHistory(href);
       this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
+
+    }
+    
+    appendHistory(href) {
+      /*const prevContent = [
+        ...(window.history?.state?.prevContent ?? []),
+        this.contentElement.innerHTML,
+      ];*/
+      history.pushState(
+        {
+          href: window.location.href,
+          title: this.contentElement.querySelector("h2")?.textContent ?? "",
+          content:this.contentElement.innerHTML,
+        },
+        "",
+        href,
+      );
     }
 
     async navigateTo(href) {
@@ -181,9 +196,10 @@
         preventDefault: () =>
           console.log(
             "Navigated by app to:",
-            href.replace(new URL(document.baseURI).pathname, ""),
+            "/"+href.replace(new URL(document.baseURI).pathname, ""),
             "from:",
-            location.pathname.replace(new URL(document.baseURI).pathname, "") || "new tab",
+            "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
+            
           ),
       });
     }
@@ -206,16 +222,35 @@
       // No fallback for GHPRoute as this is handled by the ServiceWorker
       try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to load content from ${url}`);
+        if (!response.ok) { 
+          let error = new Error(`Failed to load content from ${url}`);
+          error.status = response;
+          throw error
+        }
         const text = await response.text();
         contentElement.innerHTML = text;
         if (window.history?.state) {
-          document.title = `From ${window.history.state.prevTitle} to ${contentElement.querySelector("h2")?.textContent ?? ""}`;
+          document.title = `From ${history.state?.title} to ${contentElement.querySelector("h2")?.textContent ?? ""}`;
         } else {
           document.title = contentElement.querySelector("h2")?.textContent ?? "";
         }
       } catch (error) {
-        console.error(error);
+        if(error.status.url.startsWith(this.basePath)) {
+          console.warn("New visit from non-valid route")
+          if(this.transition) {
+            this.transition.skipTransition();
+          }
+               
+          // const url = new URL(window.location.href);
+          // url.searchParams.set('invalid', 'true');
+           
+          // Use replaceState to update the URL without triggering a navigation
+          console.log({...history.state,invalid:true});
+          history.replaceState({...history.state,invalid:true}, '', url.href);
+          this.navigateTo(new URL(this.basePath).pathname);          
+        } else {
+          console.error(error);   
+        }
       }
     }
 
