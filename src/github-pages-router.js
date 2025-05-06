@@ -13,6 +13,9 @@
     navlinks = new Set(); // Tracks all <ghp-navlink>
     routes = [];
 
+    _navigationChain = Promise.resolve(); // Queue of pending navigations
+    defaultDelay = 0; // ms — configurable
+    
     allRoutesRegistered = new Promise((resolve) => {
       this.resolveAllRoutesRegistered = resolve; // Resolve when all routes are registered
     });
@@ -118,6 +121,7 @@
     }
 
     setupMessageListeners(serviceWorker) {
+      const navQueue = this.navQueue = [];
       navigator.serviceWorker.addEventListener("message", (event) => {
         console.log("Received event:", event.data);
 
@@ -134,9 +138,43 @@
             this.resolveMapReady = resolve;
           });*/
         }
+        if (event.data.type === "CONTENT_READY") {
+          const href = event.data.href.replace("/*/", "/");
+          this.navigateTo(href);
+         /* // Push a deferred task into the queue
+          this.navQueue.push(
+            () =>
+              new Promise((resolve) => {
+                setTimeout(async () => {
+                  await this.navigateTo(href).then(resolve);
+                }, 750); // Optional delay
+              }),
+          );
+        
+          // Start processing the queue if not already doing so
+          if (!this.isProcessing) {
+            this.processNavQueue();
+          }*/
+        }
+        
       });
       console.log("Client Listeners activated");
     }
+    
+    /*async processNavQueue() {
+      this.isProcessing = true;
+    
+      while (this.navQueue.length > 0) {
+        const task = this.navQueue.shift();
+        try {
+          await task(); // Execute the task and wait for completion
+        } catch (error) {
+          console.error("Navigation failed:", error);
+        }
+      }
+    
+      this.isProcessing = false;
+    }*/
 
     addRoute(route) {
       this.routes.push(route);
@@ -186,7 +224,8 @@
       );
     }
 
-    async navigateTo(href) {
+    // Original method
+    /*async navigateTo(href) {
  
       if(this.transition) { 
         await this.transition.finished;
@@ -202,6 +241,33 @@
             
           ),
       });
+    }*/
+    
+    // Queue navigation
+    async navigateTo(href, { delay = this.defaultDelay } = {}) {
+      // Wrap the navigation logic in a task
+      const task = async () => {
+        if (this.transition) {
+          await this.transition.finished; // Wait for transition
+        }
+    
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay)); // Optional delay
+        }
+    
+        // Execute the real navigation
+        this.navigate({
+          target: { href },
+          preventDefault: () => console.log("Navigated by app"),
+        });
+      };
+    
+      // Chain the task to the queue
+      this._navigationChain = this._navigationChain
+        .catch(() => {}) // Prevent unhandled rejections from breaking the queue
+        .then(task); // Append task to the chain
+    
+      return this._navigationChain; // Optional: allow awaiting from outside
     }
 
     async viewTransition(url) {
