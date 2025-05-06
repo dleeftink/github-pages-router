@@ -380,6 +380,7 @@ self.addEventListener("fetch", (event) => {
         const usedClientId = client?.id ?? event.resultingClientId;
 
         if (!client) {
+          //(self.clients.get(usedClientId).then(client=>client.postMessage({type:"CLEAR_CONSOLE"})));
           console.clear();
           logClient("warn", usedClientId, "Fresh client detected - serving root");
           return caches.match(getRootUrl());

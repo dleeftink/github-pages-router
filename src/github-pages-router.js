@@ -240,12 +240,7 @@
           if(this.transition) {
             this.transition.skipTransition();
           }
-               
-          // const url = new URL(window.location.href);
-          // url.searchParams.set('invalid', 'true');
-           
-          // Use replaceState to update the URL without triggering a navigation
-          console.log({...history.state,invalid:true});
+          console.log("Mutating history");
           history.replaceState({...history.state,invalid:true}, '', url.href);
           this.navigateTo(new URL(this.basePath).pathname);          
         } else {
