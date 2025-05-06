@@ -31,7 +31,7 @@ function logBase(level, ...args) {
   if (!DEBUG) return;
   console[level]("[ServiceWorker]",  ...args.filter(arg=>!(arg instanceof Object)));
   if([...args].filter(arg=>(arg instanceof Object)).length) 
-  console[level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
+  console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 function logClient(level, id, ...args) {
@@ -39,7 +39,7 @@ function logClient(level, id, ...args) {
   const prefix = getClientPrefix(id);
   console[level](`[ServiceWorker] ${prefix}`, ...args.filter(arg=>!(arg instanceof Object)));
   if([...args].filter(arg=>(arg instanceof Object)).length) 
-  console[level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
+  console[level.startsWith("group") ? "log" : level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
 }
 
 
@@ -362,7 +362,7 @@ self.addEventListener("fetch", (event) => {
   }
   
   // Ignore out of scope requests
-  else if (event.request.referrer.startsWith(rootUrl) === false) { return }
+  else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return }
   
   // Navigation requests
   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
@@ -417,26 +417,27 @@ self.addEventListener("fetch", (event) => {
   else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname); last = url;
     
-    logClient("warn", clientId, "Route map match found", {
-      original: route,
-      mappedTo: contentPath.replace(basePath, ""),
+    logClient("groupCollapsed",clientId,"Fetch: " + route);
+    logClient("log", clientId, "Route map match found", {
+      href:route,
+      path: contentPath.replace(basePath, ""),
     });
 
     event.respondWith(
       caches.match(contentPath).then((cachedResponse) => {
         if (cachedResponse) {
-          logClient("warn", clientId, "Serving from route cache", {
+          logClient("log", clientId, "Serving from route cache", {
             path: contentPath.replace(basePath, ""),
           });
           return cachedResponse;
         }
 
-        logClient("warn", clientId, "Fetching from network", {
+        logClient("log", clientId, "Fetching from network", {
           path: contentPath.replace(basePath, ""),
         });
 
         return fetch(contentPath);
-      }),
+      }).then((response)=>{ console.groupEnd(); return response}),
     );
   }
   // General asset caching
