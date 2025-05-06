@@ -217,6 +217,7 @@ self.addEventListener("message", async (event) => {
           logClient("log", clientId, "Route map updated successfully", {
             totalRoutes: routeMap.size,
             newRoutes: queueMap.size,
+            routeMap
           });
 
           queueMap.clear();
@@ -417,7 +418,7 @@ self.addEventListener("fetch", (event) => {
   else if (routeMap.has(url.pathname)) {
     const contentPath = routeMap.get(url.pathname); last = url;
     
-    logClient("groupCollapsed",clientId,"Fetch: " + route);
+    logClient("groupCollapsed",clientId,"Route request: " + route);
     logClient("log", clientId, "Route map match found", {
       href:route,
       path: contentPath.replace(basePath, ""),
@@ -442,20 +443,22 @@ self.addEventListener("fetch", (event) => {
   }
   // General asset caching
   else {
+    
     logClient("debug", clientId, "Asset request", {
       path: url.pathname,
     });
 
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
+        logClient("groupCollapsed",clientId,"Asset request: " + route);
         if (cachedResponse) {
-          logClient("warn", clientId, "Asset cache hit", {
+          logClient("log", clientId, "Asset cache hit", {
             path: url.pathname,
           });
           return cachedResponse;
         }
 
-        logClient("warn", clientId, "Asset fetched from source", {
+        logClient("log", clientId, "Asset fetched from source", {
           path: url.pathname,
         });
 
@@ -464,13 +467,25 @@ self.addEventListener("fetch", (event) => {
           // If the request is cacheable, store it
           if (response.ok && shouldCacheAsset(event.request)) {
             const cache = await caches.open(CACHE_NAME);
-            await cache.put(event.request, response.clone());
+            cache.put(event.request, response.clone());
           }
-          // TO DO: 404's on basePath
+          
+          if(!response.ok) {
+           
+            return caches.match(routeMap.get(basePath))
+            
+            // return new Response(null, { status: 204 });
+            /*client.postMessage({
+              type: "NAVIGATE_TO",
+              href: basePath
+            });
+            return new Response(null, { status: 204 });*/
+          };
+
           return response
 
         })
-      }),
+      }).then((response)=>{ console.groupEnd(); return response}),
     );
   }
   
