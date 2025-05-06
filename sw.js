@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v1";
+const CACHE_NAME = "github-pages-cache-v3";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -213,9 +213,36 @@ self.addEventListener("message", async (event) => {
       queueMicrotask(async () => {
         try {
           const cache = await caches.open(CACHE_NAME);
-          const uniquePaths = [...new Set(queueMap.values())];
-
-          /*await*/ cache.addAll(uniquePaths); // => add asynchronously
+          
+          // const uniquePaths = [...new Set(queueMap.values())];
+          /* await*/ //cache.addAll(uniquePaths); // => add asynchronously
+          
+          // Fetch and notify client of cached routes asynchronously;
+          const uniquePaths = new Set();
+          const promises = queueMap.entries()
+           .filter(([_,path])=>uniquePaths.has(path)? false : (uniquePaths.add(path),true))
+           .map(([href,path]) => {
+            return fetch(path)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! Status: ${response.status} for ${path}`);
+                }
+                //const clone = response.clone();
+                return cache.put(path, response).then(() => {
+                  logClient("log", clientId,`Successfully cached: ${path}`); 
+                  event.source.postMessage({type:"CONTENT_READY",href,path})
+                  return response;
+                });
+              })
+              .catch(error => {
+                logClient("error", clientId, `Failed to fetch or cache: ${path}:`, error); 
+              });
+          });
+          
+          Promise.all(promises).then((responses) => {
+            logClient("log", clientId, "Succesfull routes have been cached asynchronously",responses)
+          });
+          
           routeMap = new Map([...routeMap, ...queueMap]);
 
           await saveRouteMap();
@@ -276,10 +303,12 @@ let last; // store last globally => not for individual client use
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
+  const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
+  const name = route.split('/').at(-1);
   const clientId = event.clientId;
-  const rootUrl = getRootUrl()
+  const rootUrl = getRootUrl();  
+  const contentPath = (routeMap.get(url.pathname) || routeMap.get(scope +'*/'+ name));
   
-  //if(new URL(event.request.referrer).pathname.startsWith(basePath) === false) return;
   // API routes
   if (route.startsWith("/API") && url.href.startsWith(rootUrl)) {
     const subroute = route.replace("/API", "");
@@ -392,10 +421,9 @@ self.addEventListener("fetch", (event) => {
           return caches.match(getRootUrl());
         }
         
-
-        if (routeMap.has(url.pathname)) {
+        if (contentPath) {
           logClient("warn", usedClientId, "Navigating to registered route", {
-            path: route,
+            path:contentPath.replace(basePath.slice(0,-1), "")
           });
 
           client.postMessage({
@@ -404,10 +432,6 @@ self.addEventListener("fetch", (event) => {
           });
           return new Response(null, { status: 204 });
         }
-        
-        /*if(!new URL(event.request.referrer).pathname.startsWith(basePath)) {
-           return fetch(event.request)
-        }*/
 
         logClient("warn", usedClientId, "Blocked invalid navigation", {
           attemptedPath: route,
@@ -422,9 +446,9 @@ self.addEventListener("fetch", (event) => {
   }
   
   // Route map matches
-  else if (routeMap.has(url.pathname)) {
-    const contentPath = routeMap.get(url.pathname); last = url;
-    
+  else if (contentPath) {
+    last = url;
+   
     logClient("groupCollapsed",clientId,"Route request: " + route);
     logClient("log", clientId, "Route map match found", {
       href:route,
