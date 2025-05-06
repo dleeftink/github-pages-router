@@ -37,7 +37,9 @@
       await this.registerServiceWorker();
       await this.servePage();
       
-      // setTimeout(async() => await this.navigateTo(this.basePath + "server"), 2);
+      const basePath = new URL(this.basePath).pathname;
+      
+      // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
     }
 
     async registerServiceWorker() {
@@ -69,9 +71,7 @@
           console.log("Service worker registration skipped");
           console.log("Previous registrations:", this.regs.length);
 
-          this.setupMessageListeners();
-
-    
+          this.setupMessageListeners();    
         }
       } else {
         console.warn("Service workers are not supported in this browser.");
@@ -141,40 +141,11 @@
         if (event.data.type === "CONTENT_READY") {
           const href = event.data.href.replace("/*/", "/");
           this.navigateTo(href);
-         /* // Push a deferred task into the queue
-          this.navQueue.push(
-            () =>
-              new Promise((resolve) => {
-                setTimeout(async () => {
-                  await this.navigateTo(href).then(resolve);
-                }, 750); // Optional delay
-              }),
-          );
-        
-          // Start processing the queue if not already doing so
-          if (!this.isProcessing) {
-            this.processNavQueue();
-          }*/
         }
         
       });
       console.log("Client Listeners activated");
     }
-    
-    /*async processNavQueue() {
-      this.isProcessing = true;
-    
-      while (this.navQueue.length > 0) {
-        const task = this.navQueue.shift();
-        try {
-          await task(); // Execute the task and wait for completion
-        } catch (error) {
-          console.error("Navigation failed:", error);
-        }
-      }
-    
-      this.isProcessing = false;
-    }*/
 
     addRoute(route) {
       this.routes.push(route);
@@ -223,25 +194,6 @@
         href,
       );
     }
-
-    // Original method
-    /*async navigateTo(href) {
- 
-      if(this.transition) { 
-        await this.transition.finished;
-      }
-      this.navigate({
-        target: { href },
-        preventDefault: () =>
-          console.log(
-            "Navigated by app to:",
-            "/"+href.replace(new URL(document.baseURI).pathname, ""),
-            "from:",
-            "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
-            
-          ),
-      });
-    }*/
     
     // Queue navigation
     async navigateTo(href, { delay = this.defaultDelay } = {}) {
@@ -258,7 +210,13 @@
         // Execute the real navigation
         this.navigate({
           target: { href },
-          preventDefault: () => console.log("Navigated by app"),
+          preventDefault: () =>
+            console.log(
+              "Navigated by app from:",
+              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
+              "to:",
+              "/"+href.replace(new URL(document.baseURI).pathname, ""),
+            ),
         });
       };
     
