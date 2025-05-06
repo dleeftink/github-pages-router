@@ -29,17 +29,23 @@ function getClientPrefix(id = "") {
 
 function logBase(level, ...args) {
   if (!DEBUG) return;
-  console[level]("[ServiceWorker]",  ...args.filter(arg=>!(arg instanceof Object)));
-  if([...args].filter(arg=>(arg instanceof Object)).length) 
-  console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...args.filter(arg=>(arg instanceof Object)));
+  const messages = args.filter(arg=>!(arg instanceof Object));
+  console[level]("[ServiceWorker]",  ...messages);
+  const payload = args.filter(arg=>(arg instanceof Object));
+  if(payload.length) {
+    console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
+  }
 }
 
 function logClient(level, id, ...args) {
   if (!DEBUG) return;
   const prefix = getClientPrefix(id);
-  console[level](`[ServiceWorker] ${prefix}`, ...args.filter(arg=>!(arg instanceof Object)));
-  if([...args].filter(arg=>(arg instanceof Object)).length) 
-  console[level.startsWith("group") ? "log" : level](`[+]`, ...args.filter(arg=>(arg instanceof Object)));
+  const messages =  args.filter(arg=>!(arg instanceof Object));
+  console[level](`[ServiceWorker] ${prefix}`,...messages);
+  const payload = args.filter(arg=>(arg instanceof Object));
+  if(payload.length) {
+    console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
+  }
 }
 
 
