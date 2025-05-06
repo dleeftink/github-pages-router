@@ -1,0 +1,132 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Facet playground</title>
+    <base href="/github-pages-router/" />
+  </head>
+  <body>
+    <inc-dec value="0">Hello</inc-dec>
+    <hr />
+    <inc-dec value="3">Goodbye</inc-dec>
+
+    <templates>
+    
+      <template component="inc-button" mixins="click-inc">
+        <button>+</button>
+      </template>
+
+      <template component="dec-button" mixins="click-dec">
+        <button>-</button>
+      </template>
+
+      <template component="num-display" mixins="click-disp">
+        <code><slot></slot></code>
+      </template>
+
+      <template component="inc-dec" mixins="counter inherit" observe="value" forminput>
+        <code><slot>Click</slot>s</code>:
+        <inc-button>+</inc-button>
+        <num-display observe></num-display>
+        <dec-button>+</dec-button>
+      </template>
+      
+      <template mixin="click-dec">
+        <script on="click">
+          this.parentNode.decrease();
+        </script>
+      </template>
+
+      <template mixin="click-inc">
+        <script on="click">
+          this.parentNode.increase();
+        </script>
+      </template>
+      
+      <template mixin="click-disp">
+       <script on="value.change">
+          host.textContent = event.detail.newValue;
+        </script>
+      </template>
+    
+      <template mixin="counter">
+        <script on="connect" once>
+          const hash = this.tagName+'-'+djb2Hash(this.outerHTML)
+         
+          let count = parseInt(sessionStorage.getItem(hash) ?? host.getAttribute('value'));
+          // const slot = root.querySelector("slot");
+          // const nodes = slot.assignedNodes({ flatten: true });
+          // const name = nodes[0].textContent;
+            
+          host.setAttribute("value", count)
+          
+          root.decrease = function (arg) {
+            host.setAttribute("value", (count -= 1));
+            setTimeout(()=>sessionStorage.setItem(hash,count))
+          };
+          root.increase = function (arg) {
+            host.setAttribute("value", (count += 1));
+            setTimeout(()=>sessionStorage.setItem(hash,count))
+          };
+        </script>
+      </template>
+
+      <template mixin="inherit">
+        <script on="connect" once>
+          this.def = document.querySelector(`template[component=${host.tagName.toLowerCase()}]`);
+
+          this.observed = this.def
+            .getAttribute("observe")
+            .split(" ")
+            .map((attr) => ({detail:{ name:attr, newValue: host.getAttribute(attr) }}));
+
+          this.targets = root.querySelectorAll("[observe]");
+
+          this.targets.forEach((tgt) =>
+            this.observed.forEach((initEvent) => {
+              tgt.dispatchEvent(attributeChange(initEvent))
+            }),
+          );
+        </script>
+        <script on="attributeChanged">
+          if(!this.targets) return;
+          this.targets.forEach((tgt) => tgt.dispatchEvent(attributeChange(event)))
+          /*Promise.all(['num-display'].map(tag => customElements.whenDefined(tag)))
+            .then(() => {
+            console.log('All custom elements are defined.');
+            // Now it's safe to interact with them
+          });*/
+        </script>
+      </template>
+
+      
+      <template component="inc-dec-alpha" mixins="methods" forminput>
+        <button>+<script on="click">root.increase(root)</script></button>
+        <span><slot>Click</slot>s:<slot></slot></span>
+        <button>-<script on="click">root.decrease(root)</script></button>
+      </template>
+      
+    </templates>
+    
+  <script>
+    function globalMethod(ctx) {
+      console.log("scoped", ctx);
+    }
+    function attributeChange(event) {
+      return new CustomEvent(event.detail.name + ".change", {
+        detail: event.detail,
+        bubbles: false,
+      });
+    }
+    function djb2Hash(str) {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash * 33) ^ str.charCodeAt(i); // Bitwise XOR
+      }
+      return hash >>> 0; // Convert to unsigned 32-bit integer
+    }
+  </script>
+      
+  <script src="https://cdn.jsdelivr.net/gh/kgscialdone/facet@0.1.2a/facet.min.js" shadow="open"></script>
+  </body>
+ 
+</html>
