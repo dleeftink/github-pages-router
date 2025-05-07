@@ -8,17 +8,17 @@
   <body>
   
     <form>
-      <count-view value="0">Hello</count-view><hr/>
+      <count-view values="0">Hello</count-view><hr/>
       <count-view value="3">G'day</count-view>
     </form>
     
     <templates>
     
-      <template component="inc-button" mixins="click-inc state">
+      <template component="inc-button" mixins="click-inc">
         <button>+</button>
       </template>
 
-      <template component="dec-button" mixins="click-dec state">
+      <template component="dec-button" mixins="click-dec">
         <button>-</button>
       </template>
 
@@ -26,18 +26,22 @@
         <code><slot></slot></code>
       </template>
 
-      <template component="count-view" mixins="define atomic dispatch" observe="value" forminput>
+      <template component="count-view" mixins="define default atomic dispatch" observe="value" forminput>
         <slot has="count"></slot>s
         <inc-button></inc-button>
         <num-output></num-output>
         <dec-button></dec-button>
+      </template>
+      
+      <template mixin="default">
         <script on="connect">
           if(!host.getAttribute('value')) host.setAttribute("value",0);
         </script>
       </template>
-      
+
       <template mixin="click-dec">
         <script on="click">
+          // this.dispatchEvent(new CustomEvent('decrease-count',{bubbles:true}));
           host.parentNode.count--;
         </script>
       </template>
@@ -97,7 +101,7 @@
           });
           
           // host.state =state 
-          //[...root.children].forEach(child=>child.state = state)
+          // [...root.children].forEach(child=>child.state = state)
           
         </script>
       </template>
