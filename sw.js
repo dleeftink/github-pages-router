@@ -411,7 +411,7 @@ self.addEventListener("fetch", (event) => {
   }
   
   // Ignore out of scope requests
-  else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
+  // else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
   
   // Navigation requests
   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
@@ -430,8 +430,6 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       self.clients.get(clientId).then(async (client) => {
         const usedClientId = client?.id ?? event.resultingClientId;
-        const clientUrl = new URL(client.url);
-        const clientRoute =  clientUrl.pathname.replace(basePath.slice(0,-1), "");
 
         if (!client) {
           //(self.clients.get(usedClientId).then(client=>client.postMessage({type:"CLEAR_CONSOLE"})));
@@ -439,6 +437,9 @@ self.addEventListener("fetch", (event) => {
           logClient("warn", usedClientId, "Fresh client detected - serving root");
           return caches.match(getRootUrl());
         }
+        
+        const clientUrl = new URL(client.url);
+        const clientRoute =  clientUrl.pathname.replace(basePath.slice(0,-1), "");
         
         // Normal fetch when out of scope
         if(client.url.startsWith(rootUrl) === false  || clientRoute.toLowerCase().startsWith('/api')) {
