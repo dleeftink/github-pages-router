@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v1";
+const CACHE_NAME = "github-pages-cache-v3";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -48,7 +48,6 @@ function logClient(level, id, ...args) {
   }
 }
 
-
 // === Lifecycle Events ===
 self.addEventListener("install", (event) => {
   logBase("log", "Installing...", {
@@ -79,8 +78,6 @@ self.addEventListener("activate", (event) => {
     basePath,
     routeMapSize: routeMap.size,
   });
-  
-  console.log("HERE",event)
 
   event.waitUntil(
     caches
@@ -103,7 +100,7 @@ self.addEventListener("activate", (event) => {
 // === Route Map Management ===
 let loadTasks = 0;
 
-async function loadRouteMap(event) {
+async function loadRouteMap(client) {
   loadTasks++
   logBase("debug", "Loading route map from cache...");
 
@@ -118,7 +115,8 @@ async function loadRouteMap(event) {
           routeMap = new Map(data);
           logBase("log", "Route map loaded successfully", {
             entries: routeMap.size,
-            sampleEntry: routeMap.entries().next().value,
+            //sampleEntry: routeMap.entries().next().value
+            routeMap
           });
         } else {
           logBase("warn", "No route map found in cache - using empty map");
@@ -126,7 +124,7 @@ async function loadRouteMap(event) {
           // We may still be constructring the map; retry just in case (e.g. not cached while ServiceWorker instantiated);
           setTimeout(async ()=>{
             if(routeMap.size === 0) {
-             (await event.source).postMessage({type:"REQUEST_ROUTES"}) 
+             client.postMessage({type:"REQUEST_ROUTES"}) 
             }            
           },500)        
   
@@ -134,53 +132,21 @@ async function loadRouteMap(event) {
       } catch (error) {
         logBase("error", "Failed to load route map:", error);
       } finally {
-        (await event.source).postMessage({
+        client.postMessage({
           type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
           size: routeMap.size,
         });
+        /*clients.matchAll().then((clients) => {
+          clients.forEach(client=>client.postMessage({
+            type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
+            size: routeMap.size,
+          }))
+        })*/
         loadTasks = 0;
       }
     })
   }
 }
-
-/*let loadTasks = 0;
-// === Route Map Management (Batch) ===
-async function loadRouteMap() {
-  loadTasks++;
-
-  if (loadTasks === 1) {
-    logBase("debug", "Loading route map from cache...");
-
-    queueMicrotask(async () => {
-      try {
-        if (routeMap.size > 0) {
-          logBase("log", "Route map already in memory", {
-            routeMap,
-          });
-          return;
-        }
-        const cache = await caches.open(CACHE_NAME);
-        const response = await cache.match(ROUTE_MAP_KEY);
-
-        if (response) {
-          const data = await response.json();
-          routeMap = new Map(data);
-          logBase("log", "Route map loaded successfully", {
-            routes: routeMap.size,
-            sample: routeMap.entries().next().value,
-          });
-        } else {
-          logBase("warn", "No route map found in cache");
-        }
-      } catch (error) {
-        logBase("error", "Failed to load route map:", error);
-      } finally {
-        loadTasks = 0;
-      }
-    });
-  }
-}*/
 
 async function saveRouteMap() {
   logBase("debug", "Saving route map to cache...");
@@ -197,6 +163,7 @@ async function saveRouteMap() {
       routes: routeMap.size,
       cacheName: CACHE_NAME,
     });
+    
   } catch (error) {
     logBase("error", "Failed to save route map:", error);
   }
@@ -287,7 +254,7 @@ self.addEventListener("message", async (event) => {
             routeMap
           });
 
-          event.source.postMessage({ type: "MAP_READY" });
+          (await event.source).postMessage({ type: "MAP_READY" });
         } catch (error) {
           logClient("error", clientId, "Route map update failed:", error);
         } finally {
@@ -310,9 +277,9 @@ self.addEventListener("message", async (event) => {
       queueMicrotask(async()=>{
         try { 
           //if(routeMap.size === 0) { 
-            await loadRouteMap(event);
-            if(routeMap.size > 0) {
-              logClient("log", clientId, "Route map check successful and reloaded", {
+            await loadRouteMap(await event.source);
+            /*if(routeMap.size > 0) {
+              logClient("log", clientId, "Route map check successfully reloaded", {
                 routeMap
               });
             } /*else {
