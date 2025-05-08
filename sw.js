@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v6";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -79,6 +79,8 @@ self.addEventListener("activate", (event) => {
     basePath,
     routeMapSize: routeMap.size,
   });
+  
+  console.log("HERE",event)
 
   event.waitUntil(
     caches
@@ -92,7 +94,7 @@ self.addEventListener("activate", (event) => {
           }),
         );
       })
-      .then(() => loadRouteMap()),
+      //.then(() => loadRouteMap()),
   );
 
   event.waitUntil(self.clients.claim());
@@ -101,7 +103,7 @@ self.addEventListener("activate", (event) => {
 // === Route Map Management ===
 let loadTasks = 0;
 
-async function loadRouteMap() {
+async function loadRouteMap(event) {
   loadTasks++
   logBase("debug", "Loading route map from cache...");
 
@@ -120,10 +122,22 @@ async function loadRouteMap() {
           });
         } else {
           logBase("warn", "No route map found in cache - using empty map");
+          
+          // We may still be constructring the map; retry just in case (e.g. not cached while ServiceWorker instantiated);
+          setTimeout(async ()=>{
+            if(routeMap.size === 0) {
+             (await event.source).postMessage({type:"REQUEST_ROUTES"}) 
+            }            
+          },500)        
+  
         }
       } catch (error) {
         logBase("error", "Failed to load route map:", error);
       } finally {
+        (await event.source).postMessage({
+          type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
+          size: routeMap.size,
+        });
         loadTasks = 0;
       }
     })
@@ -295,13 +309,13 @@ self.addEventListener("message", async (event) => {
       
       queueMicrotask(async()=>{
         try { 
-          if(routeMap.size === 0) { 
+          //if(routeMap.size === 0) { 
             await loadRouteMap(event);
             if(routeMap.size > 0) {
               logClient("log", clientId, "Route map check successful and reloaded", {
                 routeMap
               });
-            } else {
+            } /*else {
               // Retry after timeout
               setTimeout(()=>{
                 if(routeMap.size===0) { 
@@ -310,13 +324,13 @@ self.addEventListener("message", async (event) => {
                 }
               },500)
              
-            }
-          }
+            }*/
+          //}
         
-          event.source.postMessage({
+          /*event.source.postMessage({
             type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
             size: routeMap.size,
-          });
+          });*/
         } catch (error) {
           logClient("error", clientId, "Route map check failed:", error); 
         } finally {
