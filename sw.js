@@ -447,7 +447,7 @@ self.addEventListener("fetch", (event) => {
             path: route || "/",
             from:event.request.referrer
           });
-          return fetch(event.request)
+          return fetch(event.request) // => needs postNavigation route as well..
         }
         
         if (contentPath) {
