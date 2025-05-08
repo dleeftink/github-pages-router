@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v3";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -135,6 +135,7 @@ async function loadRouteMap(client) {
         client.postMessage({
           type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
           size: routeMap.size,
+          routeMap
         });
         /*clients.matchAll().then((clients) => {
           clients.forEach(client=>client.postMessage({
@@ -187,6 +188,7 @@ self.addEventListener("message", async (event) => {
     }
 
     queueMap.set(href, path/*+'?t' + Date.now()*/);
+    console.log("SETTING",href)
     logClient("log", clientId, event.data?.redo ? "Route queued (worker request)" : "Route queued (from app)", {
       path,
       queueSize: queueMap.size,
@@ -254,7 +256,7 @@ self.addEventListener("message", async (event) => {
             routeMap
           });
 
-          (await event.source).postMessage({ type: "MAP_READY" });
+          (await event.source).postMessage({ type: "MAP_READY", routeMap });
         } catch (error) {
           logClient("error", clientId, "Route map update failed:", error);
         } finally {
