@@ -301,7 +301,7 @@
             this.transition.skipTransition();
           }
           console.log("Mutating history");
-          // history.replaceState({...history.state,invalid:true}, '', url.href);
+          history.replaceState({...history.state,invalid:true}, '', url.href);
           this.navigateTo(new URL(this.basePath).pathname);          
         } else {
           console.error(error);   
