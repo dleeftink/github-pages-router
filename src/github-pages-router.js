@@ -172,7 +172,7 @@
 
     async addRoute(route) {
         
-      // if(this.routes.has( new URL(route.href, document.baseURI).pathname)) return;
+      if(this.routes.has(new URL(route.href, document.baseURI).pathname)) return;
       
       this.queue.push(route);
       if (this.queue.length === 1) {
