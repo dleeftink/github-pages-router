@@ -188,7 +188,6 @@ self.addEventListener("message", async (event) => {
     }
 
     queueMap.set(href, path/*+'?t' + Date.now()*/);
-    console.log("SETTING",href)
     logClient("log", clientId, event.data?.redo ? "Route queued (worker request)" : "Route queued (from app)", {
       path,
       queueSize: queueMap.size,
@@ -323,7 +322,8 @@ self.addEventListener("fetch", (event) => {
   const contentPath = (routeMap.get(url.pathname) || routeMap.get(scope +'*/'+ name));
   
   // API routes
-  if (route.startsWith("/API") && url.href.startsWith(rootUrl)) {
+  
+  if (route.toLowerCase().startsWith("/API") && url.href.startsWith(rootUrl)) {
     const subroute = route.replace("/API", "");
     const routePath = subroute.split("?")[0];
   // console.log("SOME TEST", new URL(event.request.referrer).pathname);
@@ -411,18 +411,27 @@ self.addEventListener("fetch", (event) => {
   }
   
   // Ignore out of scope requests
-  else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return }
+  // if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
   
   // Navigation requests
   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
     
     last = url;
     
+    
     logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
       path: route || "/",
-      hasRoute: routeMap.has(url.pathname),
+      from:event.request.referrer
     });
 
+    if (event.request.referrer && (event.request.referrer.startsWith(rootUrl) === false  || route.toLowerCase().startsWith("/API"))) { 
+      logClient("warn", clientId || event.resultingClientId, "Navigation passed through", {
+        path: route || "/",
+        from:event.request.referrer
+      });
+      return 
+    }
+    
     event.respondWith(
       self.clients.get(clientId).then(async (client) => {
         const usedClientId = client?.id ?? event.resultingClientId;
