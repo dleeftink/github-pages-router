@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v1";
+const CACHE_NAME = "github-pages-cache-v6";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -99,25 +99,34 @@ self.addEventListener("activate", (event) => {
 });
 
 // === Route Map Management ===
+let loadTasks = 0;
+
 async function loadRouteMap() {
+  loadTasks++
   logBase("debug", "Loading route map from cache...");
 
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match(ROUTE_MAP_KEY);
-
-    if (response) {
-      const data = await response.json();
-      routeMap = new Map(data);
-      logBase("log", "Route map loaded successfully", {
-        entries: routeMap.size,
-        sampleEntry: routeMap.entries().next().value,
-      });
-    } else {
-      logBase("warn", "No route map found in cache - using empty map");
-    }
-  } catch (error) {
-    logBase("error", "Failed to load route map:", error);
+  if(loadTasks === 1) {    
+    queueMicrotask(async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const response = await cache.match(ROUTE_MAP_KEY);
+      
+        if (response) {
+          const data = await response.json();
+          routeMap = new Map(data);
+          logBase("log", "Route map loaded successfully", {
+            entries: routeMap.size,
+            sampleEntry: routeMap.entries().next().value,
+          });
+        } else {
+          logBase("warn", "No route map found in cache - using empty map");
+        }
+      } catch (error) {
+        logBase("error", "Failed to load route map:", error);
+      } finally {
+        loadTasks = 0;
+      }
+    })
   }
 }
 
@@ -187,7 +196,8 @@ let loadChecks = 0;
 self.addEventListener("message", async (event) => {
   const clientId = event.source.id;
 
-  if (event.data?.type === "ADD_ROUTE") {
+  if (event.data?.type === "ADD_ROUTE" || event.data?.type === "ADD_REQUESTED_ROUTE") {
+
     const { href, path } = event.data;
 
     if (queueMap.has(href)) {
@@ -196,13 +206,14 @@ self.addEventListener("message", async (event) => {
     }
 
     queueMap.set(href, path/*+'?t' + Date.now()*/);
-    logClient("log", clientId, "Route queued", {
+    logClient("log", clientId, event.data?.redo ? "Route queued (worker request)" : "Route queued (from app)", {
       path,
       queueSize: queueMap.size,
     });
   }
 
   if (event.data?.type === "STORE_MAP") {
+    if(queueMap.size === 0) return;
     storeTasks++;
 
     if (storeTasks === 1) {
@@ -225,7 +236,9 @@ self.addEventListener("message", async (event) => {
             return fetch(path)
               .then(response => {
                 if (!response.ok) {
-                  throw new Error(`HTTP error! Status: ${response.status} for ${path}`);
+                  let error = new Error(`HTTP error! Status: ${response.status} for ${path}`);
+                  error.response = response;
+                  throw error
                 }
                 //const clone = response.clone();
                 return cache.put(path, response).then(() => {
@@ -235,12 +248,19 @@ self.addEventListener("message", async (event) => {
                 });
               })
               .catch(error => {
-                logClient("error", clientId, `Failed to fetch or cache: ${path}:`, error); 
+                logClient("warn", clientId, `Failed to fetch or cache: ${path}:`, error); 
+                return error
               });
           });
           
           Promise.all(promises).then((responses) => {
-            logClient("log", clientId, "Succesfull routes have been cached asynchronously",responses)
+            let cached = responses.filter(response=>!(response instanceof Error));
+            let failed = responses.filter(response=>(response instanceof Error)).map(d=>d.response);
+            if(failed.length) {
+              logClient("log", clientId, "Queued routes cached asynchronously with exceptions:",{cached,failed})
+            } else {
+              logClient("log", clientId, "Queued routes cached asynchronously:",{cached})
+            }
           });
           
           routeMap = new Map([...routeMap, ...queueMap]);
@@ -253,11 +273,11 @@ self.addEventListener("message", async (event) => {
             routeMap
           });
 
-          queueMap.clear();
           event.source.postMessage({ type: "MAP_READY" });
         } catch (error) {
           logClient("error", clientId, "Route map update failed:", error);
         } finally {
+          queueMap.clear();
           storeTasks = 0;
         }
       });
@@ -265,8 +285,9 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data?.type === "CHECK_MAP") {
-
+    // console.log("ROUTES TASKS",loadTasks,storeTasks);
     loadChecks++
+    
     if(loadChecks===1) {
       logClient("debug", clientId, "Route map check requested", {
         routeMapSize: routeMap.size,
@@ -275,11 +296,20 @@ self.addEventListener("message", async (event) => {
       queueMicrotask(async()=>{
         try { 
           if(routeMap.size === 0) { 
-            await loadRouteMap();
+            await loadRouteMap(event);
             if(routeMap.size > 0) {
               logClient("log", clientId, "Route map check successful and reloaded", {
                 routeMap
               });
+            } else {
+              // Retry after timeout
+              setTimeout(()=>{
+                if(routeMap.size===0) { 
+                  event.source.postMessage({type:"REQUEST_ROUTES"}) 
+                  logClient("log", clientId, "No routes in cache, requesting")
+                }
+              },500)
+             
             }
           }
         

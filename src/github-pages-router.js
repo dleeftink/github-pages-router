@@ -106,17 +106,19 @@
       }
     }
 
-    setupRoutes({ skip = false, navigate = true } = {}) {
+    setupRoutes({ redo = false } = {}) {
       console.log("Setting up routes");
       navigator.serviceWorker.ready.then((registration) => {
         let routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
         routes.forEach(({ href, path }) => {
+          console.log("Sending route",href)
           registration.active.postMessage({
-            type: "ADD_ROUTE",
+            type: redo ? "ADD_REQUESTED_ROUTE" : "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
+            redo
           });
         });
         registration.active.postMessage({
@@ -132,6 +134,9 @@
       navigator.serviceWorker.addEventListener("message", (event) => {
         console.log("Received event:", event.data);
 
+        if (event.data.type === "REQUEST_ROUTES") {
+          this.setupRoutes({redo:true})
+        }
         if (event.data.type === "NAVIGATE_TO") {
           console.log("Responding to NAVIGATE_TO event from service worker using payload:", event.data);
           this.navigateTo(event.data.href);
