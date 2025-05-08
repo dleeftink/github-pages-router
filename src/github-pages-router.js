@@ -17,13 +17,13 @@
     /** DOM Element that wraps the content, defaults to <main> tag. */
     contentElement = undefined;
     navlinks = new Set(); // Tracks all <ghp-navlink>
-    routes = [];
+    routes = new Map(); queue = [];
 
     _navigationChain = Promise.resolve(); // Queue of pending navigations
     defaultDelay = 0; // ms — configurable
     
     allRoutesRegistered = new Promise((resolve) => {
-      this.resolveAllRoutesRegistered = resolve; // Resolve when all routes are registered
+      this.resolveRoutes = resolve; // Resolve when all routes are registered
     });
 
     mapReady = new Promise((resolve) => {
@@ -51,8 +51,11 @@
 
     async registerServiceWorker() {
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.addEventListener("controllerchange", (event) => {
-          this.setupRoutes();
+        navigator.serviceWorker.addEventListener("controllerchange",(event) => {
+
+          const routes = this.queue.length ? this.queue : this.querySelectorAll(":scope > ghp-route");
+          this.setupRoutes({routes});
+          
         });
         
         this.regs = await navigator.serviceWorker.getRegistrations();
@@ -64,13 +67,13 @@
             const basePathName = new URL(this.basePath).pathname;
 
             const context = this;
-            const swPath = `${basePathName}sw.js?t=${Date.now()}`;
+            const swPath = `${basePathName}sw.js?`; //`${basePathName}sw.js?t=${Date.now()}`;
 
             // Register the service worker with the correct scope
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
             this.setupMessageListeners();
-            //this.servePage();
+
           } catch (error) {
             console.error("Service worker registration failed:", error);
           }
@@ -106,10 +109,10 @@
       }
     }
 
-    setupRoutes({ redo = false } = {}) {
+    setupRoutes({ redo = false,routes } = {}) {
       console.log("Setting up routes");
       navigator.serviceWorker.ready.then((registration) => {
-        let routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
+        // if(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
         routes.forEach(({ href, path }) => {
@@ -124,7 +127,6 @@
         registration.active.postMessage({
           type: "STORE_MAP",
         });
-        console.log("Service worker initialised successfully");
         return registration;
       });
     }
@@ -142,7 +144,12 @@
           this.navigateTo(event.data.href);
         }
         if (event.data.type === "MAP_READY") {
+          if(this.routes.size === 0)  console.log("Service worker initialised successfully");
+          this.routes = event.data.routeMap;
           this.resolveMapReady();
+        }
+        if (event.data.type === "MAP_TRANSFER") {
+          this.routes = event.data.routeMap;
         }
         if (event.data.type === "MAP_NOT_READY") {
           console.log("Waiting for routes...");
@@ -163,13 +170,24 @@
       console.log("Client Listeners activated");
     }
 
-    addRoute(route) {
-      this.routes.push(route);
-      if (this.routes.length === 1) {
-        queueMicrotask(() => {
-          //const payload = JSON.stringify(this.routes)
-          //console.log(payload);
-          this.resolveAllRoutesRegistered(this.routes);
+    async addRoute(route) {
+        
+      // if(this.routes.has( new URL(route.href, document.baseURI).pathname)) return;
+      
+      this.queue.push(route);
+      if (this.queue.length === 1) {
+        queueMicrotask(async () => {
+          
+          // Add routes after initial discovery
+          if(this.routes.size > 0) { 
+            this.mapReady = new Promise((resolve) => {
+              this.resolveMapReady = resolve;
+            });
+            this.setupRoutes({routes:this.queue})
+          }
+          await this.mapReady;
+          this.queue.length = 0;
+
         });
       }
     }
@@ -341,7 +359,7 @@
         return;
       }
 
-      // this.router.addRoute({href,path});
+      this.router.addRoute({href,path});
     }
   }
 

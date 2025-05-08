@@ -29,7 +29,7 @@
       <ghp-route href="*/overview" path="./articles/overview.html"></ghp-route>
       <ghp-route href="*/setup" path="./articles/setup.html"></ghp-route>
       <ghp-route href="*/usage" path="./articles/usage.html"></ghp-route>
-      <ghp-route href="*/server" path="./articles/server.html"></ghp-route>
+     
       <ghp-route href="*/error" path="./articles/non-existing.html"></ghp-route>
 
       <div class="layout">
@@ -66,5 +66,13 @@
     </ghp-router>
 	
     <script src="./src/github-pages-router.js"></script>
+    <script>
+    
+      let route = document.createElement('ghp-route');
+      let desc = {href:'*/server',path:'./articles/server.html'}
+      Object.entries(desc).forEach(([key,val]) => route.setAttribute(key,val))
+      
+      setTimeout(()=>document.querySelector('ghp-router').appendChild(route),2000);
+    </script>
   </body>
 </html>
