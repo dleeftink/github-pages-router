@@ -253,7 +253,7 @@
             ),
         });
         
-        this.appendHistory(href);
+        // this.appendHistory(href);
       };
     
       // Chain the task to the queue
