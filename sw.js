@@ -411,36 +411,42 @@ self.addEventListener("fetch", (event) => {
   }
   
   // Ignore out of scope requests
-  // if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
+  else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
   
   // Navigation requests
   else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
     
     last = url;
-    
-    
+   
     logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
       path: route || "/",
-      from:event.request.referrer
+      from:event.request.referrer,
+      href:url.href,
+      name,
+      scope,
     });
 
-    if (event.request.referrer && (event.request.referrer.startsWith(rootUrl) === false  || route.toLowerCase().startsWith("/api"))) { 
-      logClient("warn", clientId || event.resultingClientId, "Navigation passed through", {
-        path: route || "/",
-        from:event.request.referrer
-      });
-      return 
-    }
     
     event.respondWith(
       self.clients.get(clientId).then(async (client) => {
         const usedClientId = client?.id ?? event.resultingClientId;
+        const clientUrl = new URL(client.url);
+        const clientRoute =  clientUrl.pathname.replace(basePath.slice(0,-1), "");
 
         if (!client) {
           //(self.clients.get(usedClientId).then(client=>client.postMessage({type:"CLEAR_CONSOLE"})));
           console.clear();
           logClient("warn", usedClientId, "Fresh client detected - serving root");
           return caches.match(getRootUrl());
+        }
+        
+        // Normal fetch when out of scope
+        if(client.url.startsWith(rootUrl) === false  || clientRoute.toLowerCase().startsWith('/api')) {
+          logClient("warn", clientId || event.resultingClientId, "Navigation passed through", {
+            path: route || "/",
+            from:event.request.referrer
+          });
+          return fetch(event.request)
         }
         
         if (contentPath) {
@@ -465,6 +471,7 @@ self.addEventListener("fetch", (event) => {
         });
       }),
     );
+    
   }
   
   // Route map matches
