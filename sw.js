@@ -323,8 +323,8 @@ self.addEventListener("fetch", (event) => {
   
   // API routes
   
-  if (route.toLowerCase().startsWith("/API") && url.href.startsWith(rootUrl)) {
-    const subroute = route.replace("/API", "");
+  if (route.toLowerCase().startsWith("/api") && url.href.startsWith(rootUrl)) {
+    const subroute = route.toLowerCase().replace("/api", "");
     const routePath = subroute.split("?")[0];
   // console.log("SOME TEST", new URL(event.request.referrer).pathname);
 
@@ -424,7 +424,7 @@ self.addEventListener("fetch", (event) => {
       from:event.request.referrer
     });
 
-    if (event.request.referrer && (event.request.referrer.startsWith(rootUrl) === false  || route.toLowerCase().startsWith("/API"))) { 
+    if (event.request.referrer && (event.request.referrer.startsWith(rootUrl) === false  || route.toLowerCase().startsWith("/api"))) { 
       logClient("warn", clientId || event.resultingClientId, "Navigation passed through", {
         path: route || "/",
         from:event.request.referrer
