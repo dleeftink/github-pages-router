@@ -79,22 +79,36 @@ self.addEventListener("activate", (event) => {
     routeMapSize: routeMap.size,
   });
 
+  // Consolidate all asynchronous operations into a single promise chain
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
+    (async () => {
+      try {
+        // Enable navigation preloads if supported
+        if (self.registration.navigationPreload) {
+          await self.registration.navigationPreload.enable();
+        }
+
+        // Clean up old caches
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(async (cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              return caches.delete(cacheName).then(() => logBase("log", "Deleted old cache:", cacheName));
+              await caches.delete(cacheName);
+              logBase("log", "Deleted old cache:", cacheName);
             }
           }),
         );
-      })
-      //.then(() => loadRouteMap()),
-  );
 
-  event.waitUntil(self.clients.claim());
+        // Claim control of all clients
+        await self.clients.claim();
+
+        // Optional: Uncomment if you want to load the route map after activation
+        // await loadRouteMap();
+      } catch (error) {
+        console.error("Error during service worker activation:", error);
+      }
+    })(),
+  );
 });
 
 // === Route Map Management ===
@@ -513,7 +527,53 @@ self.addEventListener("fetch", (event) => {
       path: url.pathname,
     });
 
-    event.respondWith(
+    
+    event.respondWith(async function() {
+        
+      logClient("groupCollapsed",clientId,"Asset request: " + route);
+      
+      // Respond from the cache if we can
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) {
+        logClient("log", clientId, "Asset cache hit", {
+          path: url.pathname,
+        });
+        console.groupEnd();
+        return cachedResponse;
+      }
+
+      // Else, use the preloaded response, if it's there
+      const response = await event.preloadResponse;
+      if (response) { 
+        logClient("log", clientId, "Asset returned from preload", {
+          path: url.pathname,
+        });
+        console.groupEnd();
+        return response;
+      }
+      
+      
+      logClient("log", clientId, "Asset fetched from source", {
+        path: url.pathname,
+      });
+
+      console.groupEnd();
+      // Else try the network.
+      return fetch(event.request).then(async (response)=>{
+          
+        // If the request is cacheable, store it
+        if (response.ok && shouldCacheAsset(event.request)) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, response.clone());
+        }
+
+       
+        return response
+
+      })
+    }());
+  
+    /*event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         logClient("groupCollapsed",clientId,"Asset request: " + route);
         if (cachedResponse) {
@@ -535,15 +595,16 @@ self.addEventListener("fetch", (event) => {
             cache.put(event.request, response.clone());
           }
           
-          /*if(!response.ok) {
-            return caches.match(routeMap.get(basePath))
-          };*/
+          //if(!response.ok) {
+          //return caches.match(routeMap.get(basePath))
+          //};
 
           return response
 
         })
       }).then((response)=>{ console.groupEnd(); return response}),
-    );
+    );*/
+    
   }
   
 });
