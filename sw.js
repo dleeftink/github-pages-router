@@ -446,7 +446,7 @@ self.addEventListener("fetch", (event) => {
 
            // fetch request returned 404, serve custom 404 page
            if (response.status === 404) {
-             return fetch(getRootUrl() + "404.html");  // => needs postNavigation route as well?
+             return fetch(getRootUrl());  // => needs postNavigation route as well?
            }
            
          });
