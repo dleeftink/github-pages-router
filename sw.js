@@ -449,6 +449,8 @@ self.addEventListener("fetch", (event) => {
              return fetch(getRootUrl());  // => needs postNavigation route as well?
            }
            
+           return response
+           
          });
         }
         
