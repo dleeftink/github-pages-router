@@ -1,4 +1,4 @@
-const CACHE_NAME = "github-pages-cache-v2";
+const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
@@ -121,7 +121,7 @@ async function loadRouteMap(client) {
         } else {
           logBase("warn", "No route map found in cache - using empty map");
           
-          // We may still be constructring the map; retry just in case (e.g. not cached while ServiceWorker instantiated);
+          // We may still be constructring the map; retry just in case (e.g. when no cached routes on active ServiceWorker);
           setTimeout(async ()=>{
             if(routeMap.size === 0) {
              client.postMessage({type:"REQUEST_ROUTES"}) 
@@ -137,12 +137,7 @@ async function loadRouteMap(client) {
           size: routeMap.size,
           routeMap
         });
-        /*clients.matchAll().then((clients) => {
-          clients.forEach(client=>client.postMessage({
-            type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
-            size: routeMap.size,
-          }))
-        })*/
+
         loadTasks = 0;
       }
     })
@@ -447,7 +442,14 @@ self.addEventListener("fetch", (event) => {
             path: route || "/",
             from:event.request.referrer
           });
-          return fetch(event.request) // => needs postNavigation route as well..
+          return fetch(event.request).then(response => {
+
+           // fetch request returned 404, serve custom 404 page
+           if (response.status === 404) {
+             return fetch(getRootUrl() + "404.html");  // => needs postNavigation route as well?
+           }
+           
+         });
         }
         
         if (contentPath) {
