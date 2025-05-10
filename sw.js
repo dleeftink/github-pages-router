@@ -84,7 +84,7 @@ self.addEventListener("activate", (event) => {
     routeMapSize: routeMap.size,
   });
 
-  event.waitUntil(
+  /*event.waitUntil(
     caches
       .keys()
       .then((cacheNames) => {
@@ -97,7 +97,7 @@ self.addEventListener("activate", (event) => {
         );
       })
       //.then(() => loadRouteMap()),
-  );
+  );*/
 
   event.waitUntil(self.clients.claim());
 });
@@ -521,7 +521,7 @@ self.addEventListener("fetch", (event) => {
 
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        logClient("groupCollapsed",clientId,"Asset request: " + route);
+        logClient("groupCollapsed",clientId,"Asset request: " + route, {routeMap:[...routeMap.entries()]});
         if (cachedResponse) {
           logClient("log", clientId, "Asset cache hit", {
             path: url.pathname,
