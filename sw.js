@@ -131,7 +131,7 @@ async function loadRouteMap(client) {
             if(routeMap.size === 0) {
              client.postMessage({type:"REQUEST_ROUTES"}) 
             }            
-          },500)        
+          },500)
   
         }
       } catch (error) {
@@ -313,6 +313,8 @@ let last; // store last globally => not for individual client use
 
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
+    
+  if(routeMap.size === 0) return;
    
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
