@@ -137,7 +137,8 @@ async function loadRouteMap(client) {
       } catch (error) {
         logBase("error", "Failed to load route map:", error);
       } finally {
-        client.postMessage({
+        
+        if(client) client.postMessage({
           type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
           size: routeMap.size,
           routeMap
@@ -313,6 +314,13 @@ let last; // store last globally => not for individual client use
 
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
+    
+  const routeMapReady = (routeMap.size === 0)
+    ? loadRouteMap()
+    : Promise.resolve();
+  event.waitUntil(routeMapReady);
+  
+  
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
   const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
@@ -322,6 +330,8 @@ self.addEventListener("fetch", (event) => {
   const contentPath = (routeMap.get(url.pathname) || routeMap.get(scope +'*/'+ name));
   
   // API routes
+  
+  routeMapReady.then(() => { 
   
   if (route.toLowerCase().startsWith("/api") && url.href.startsWith(rootUrl)) {
     const subroute = route.toLowerCase().replace("/api", "");
@@ -552,6 +562,7 @@ self.addEventListener("fetch", (event) => {
     );
   }
   
+  })
 });
 
 function shouldCacheAsset(request) {
