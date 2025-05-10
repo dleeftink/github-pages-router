@@ -35,6 +35,7 @@ function logBase(level, ...args) {
   if(payload.length) {
     console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
   }
+  logToClients(args)
 }
 
 function logClient(level, id, ...args) {
@@ -46,8 +47,12 @@ function logClient(level, id, ...args) {
   if(payload.length) {
     console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
   }
+  logToClients(args,id)
 }
 
+function logToClients(args,id) {
+  clients.matchAll().then((clients)=> { if(!clients.length) return; clients[0].postMessage({type:"LOG_EVENT",args,client:id})}).catch((err)=>console.warn(err))
+}
 // === Lifecycle Events ===
 self.addEventListener("install", (event) => {
   logBase("log", "Installing...", {

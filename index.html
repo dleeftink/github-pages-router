@@ -63,7 +63,10 @@
 
         <footer>GitHub: <a href="https://github.com/fibo/github-pages-router">fibo/github-pages-router</a></footer>
       </div>
+      
+      <log-display max-logs="100"></log-display>
     </ghp-router>
+    
 	
     <script src="./src/github-pages-router.js"></script>
     <script>
@@ -73,6 +76,7 @@
       Object.entries(desc).forEach(([key,val]) => route.setAttribute(key,val))
       
       setTimeout(()=>document.querySelector('ghp-router').appendChild(route),2000);
+      
     </script>
   </body>
 </html>

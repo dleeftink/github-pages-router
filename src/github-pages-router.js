@@ -43,8 +43,7 @@
       await this.registerServiceWorker();
       await this.servePage();
       
-      const basePath = new URL(this.basePath).pathname;
-      
+      // const basePath = new URL(this.basePath).pathname;  
       // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
 
     }
@@ -134,7 +133,7 @@
     setupMessageListeners(serviceWorker) {
       const navQueue = this.navQueue = [];
       navigator.serviceWorker.addEventListener("message", (event) => {
-        console.log("Received event:", event.data);
+        if(event.data && event.data.type !== 'LOG_EVENT') console.log("Received event:", event.data);
 
         if (event.data.type === "REQUEST_ROUTES") {
           this.setupRoutes({redo:true})
@@ -159,11 +158,33 @@
         }
         if (event.data.type === "CONTENT_READY") {
           const href = event.data.href.replace("/*/", "/");
-          const sel = href.replace(new URL(this.basePath).pathname,'') //href.split('/').at(-1);
+          const sel = href.replace(new URL(this.basePath).pathname,'');
           // this.navigateTo(href);
           let el = this.querySelector(`ghp-navlink > a[href$="/${sel}"]`);
           setTimeout(()=>el.textContent = '[+] ' +  el.textContent,1000);
 
+        }
+        if (event.data.type === "LOG_EVENT") {
+          //this.logs.push(event.data.args)
+          //sessionStorage.setItem("serviceWorkerLog", JSON.stringify(this.logs))
+          let client = event.data.client;
+          let head = event.data.args.splice(0,1);
+          let tail = event.data.args
+          if(tail.length > 1) { 
+            tail = JSON.stringify(tail);
+          } else if(tail.length === 1) {
+            tail = JSON.stringify(tail[0]);
+          } else {
+            tail = null;
+          }
+          if(client) { 
+            head = `[${client.split('-')[0]}] ${head}`;
+          }
+          if(client && tail) {
+            tail = `[${client.split('-')[0]}] ${tail}`;
+          }
+          if(head) this.logger.appendLog(head);
+          if(tail) this.logger.appendLog(tail);
         }
         
       });
@@ -433,6 +454,183 @@
       }
     }
   }
-
+  
   defineComponent("ghp-navlink", GHPNavlink);
+  
+  class LogDisplay extends HTMLElement {
+    router = undefined;
+    constructor() {
+      super();
+      this.router = findParentRouter(this);
+      this.router.logger = this;
+      this.attachShadow({ mode: 'open' });
+  
+      // Default max logs
+      this.maxLogs = parseInt(this.getAttribute('max-logs'), 10) || 50;
+  
+      // Restore logs from sessionStorage
+      this.restoreLogsFromStorage();
+  
+      // Create UI elements
+      this.createButton();
+      this.createOverlay();
+      this.createLogContainer();
+  
+      // Assemble UI
+      this.shadowRoot.appendChild(this.button);
+      this.shadowRoot.appendChild(this.overlay);
+      this.overlay.appendChild(this.logContainer);
+  
+      // Initialize event listeners
+      this.button.addEventListener('click', () => this.toggleOverlay());
+      this.overlay.addEventListener('click', (e) => {
+        // Only close overlay if the click was on the backdrop itself
+        if (e.target === e.currentTarget) {
+          this.toggleOverlay();
+        }
+      });
+    }
+  
+    /**
+     * Creates the floating toggle button
+     */
+    createButton() {
+      this.button = document.createElement('button');
+      this.button.textContent = '??';
+      this.button.setAttribute('aria-label', 'Toggle Log Panel');
+      this.button.setAttribute('aria-expanded', 'false');
+      this.button.style = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 10000;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #007bff;
+        color: white;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      `;
+    }
+  
+    /**
+     * Creates the overlay panel with a backdrop
+     */
+    createOverlay() {
+      this.overlay = document.createElement('div');
+      this.overlay.style = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 60px;
+        z-index: 9999;
+      `;
+    }
+  
+    /**
+     * Creates the scrollable log container inside the overlay
+     */
+    createLogContainer() {
+      this.logContainer = document.createElement('div');
+      this.logContainer.style = `
+        background: #f8f8f8;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow: auto; /* Enables both vertical and horizontal scrolling */
+        padding: 15px;
+        box-sizing: border-box;
+        font-family: monospace;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        color: #333;
+        white-space: nowrap; /* Prevent line breaks inside the container */
+      `;
+    }
+  
+    /**
+     * Toggles the overlay visibility
+     */
+    toggleOverlay() {
+      const isVisible = this.overlay.style.display === 'flex';
+      this.overlay.style.display = isVisible ? 'none' : 'flex';
+      this.button.setAttribute('aria-expanded', !isVisible);
+      if (!isVisible) {
+        this.render(); // Ensure latest logs are shown
+        this.scrollToBottom();
+      }
+    }
+  
+    /**
+     * Scrolls to the bottom of the log container
+     */
+    scrollToBottom() {
+      this.logContainer.scrollTop = this.logContainer.scrollHeight;
+    }
+  
+    /**
+     * Appends a new log message to the display and persists it.
+     * @param {string} message - The log message to append
+     */
+    appendLog(message) {
+      const timestamp = new Date().toISOString();
+      const fullMessage = `${timestamp} - ${message}`;
+      this.logs.push(fullMessage);
+  
+      if (this.logs.length > this.maxLogs) {
+        this.logs.shift(); // Remove oldest
+      }
+  
+      this.saveLogsToStorage();
+      this.render();
+    }
+  
+    /**
+     * Saves the current logs array to sessionStorage.
+     */
+    saveLogsToStorage() {
+      localStorage.setItem('app-logs', JSON.stringify(this.logs));
+    }
+  
+    /**
+     * Restores logs from sessionStorage if available.
+     */
+    restoreLogsFromStorage() {
+      const storedLogs = localStorage.getItem('app-logs');
+      this.logs = storedLogs ? JSON.parse(storedLogs) : [];
+  
+      if (this.logs.length > this.maxLogs) {
+        this.logs = this.logs.slice(-this.maxLogs);
+      }
+    }
+  
+    /**
+     * Re-renders the log container with current logs.
+     */
+    render() {
+      this.logContainer.innerHTML = '';
+      this.logs.forEach(log => {
+        const entry = document.createElement('div');
+        entry.textContent = log;
+        entry.style = `
+          white-space: nowrap; /* Force log entry to single line */
+          padding: 4px 0;
+        `;
+        this.logContainer.appendChild(entry);
+      });
+    }
+  }
+
+
+  defineComponent('log-display', LogDisplay);
+
 })();
