@@ -158,7 +158,7 @@
         }
         if (event.data.type === "NAVIGATE_TO") {
           console.log("Responding to NAVIGATE_TO event from service worker using payload:", event.data);
-          // this.navigateTo(event.data.href);
+          this.navigateTo(event.data.href);
         }
         if (event.data.type === "MAP_READY") {
           if(this.routes.size === 0)  console.log("Service worker initialised successfully");
@@ -348,7 +348,7 @@
           }
           console.log("Mutating history");
           history.replaceState({...history.state,invalid:true}, '', url.href);
-          this.navigateTo(new URL(this.basePath).pathname);          
+          // this.navigateTo(new URL(this.basePath).pathname);          
         } else {
           console.error(error);   
         }
