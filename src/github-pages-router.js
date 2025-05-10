@@ -434,7 +434,7 @@
 
     handleEvent(event) {
       if (event.type === "click" && event.target === this.anchor) {
-        this.router?.navigate(event);
+        // this.router?.navigate(event);
       }
     }
   }
@@ -465,7 +465,7 @@
 
     handleEvent(event) {
       if (event.type === "click" && event.target === this.anchor) {
-        this.router?.navigate(event);
+       // this.router?.navigate(event);
       }
     }
 
