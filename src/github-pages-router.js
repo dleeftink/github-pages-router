@@ -45,9 +45,7 @@
       await this.registerServiceWorker();
       await this.servePage();
       
-      this.logger.appendLog("===========");
-      
-
+     
       
       // const basePath = new URL(this.basePath).pathname;  
       // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
@@ -55,6 +53,9 @@
     }
 
     async registerServiceWorker() {
+
+       this.logger.appendLog("Registering"); 
+       this.logger.appendLog("===========");
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange",(event) => {
 
@@ -77,6 +78,9 @@
             // Register the service worker with the correct scope
             let registration = await navigator.serviceWorker.register(swPath, { scope: basePathName });
             console.log("Service Worker registered with scope:", registration.scope);
+            
+            this.logger.appendLog("Registered!"); 
+            this.logger.appendLog("===========");
             this.setupMessageListeners();
 
           } catch (error) {
@@ -86,6 +90,8 @@
           console.log("Service worker registration skipped");
           console.log("Previous registrations:", this.regs.length);
 
+          this.logger.appendLog("Skipped reg"); 
+          this.logger.appendLog("===========");
           this.setupMessageListeners();    
         }
       } else {
@@ -94,7 +100,13 @@
     }
 
     async servePage() {
+
+      this.logger.appendLog("Page served"); 
+      this.logger.appendLog("===========");
+      
       navigator.serviceWorker.ready.then((registration) => { 
+        this.logger.appendLog("Route check"); 
+        this.logger.appendLog("===========");
         registration.active.postMessage({
           type: "CHECK_MAP",
         });
