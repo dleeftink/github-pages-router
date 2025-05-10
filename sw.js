@@ -247,7 +247,7 @@ self.addEventListener("message", async (event) => {
           
           routeMap = new Map([...routeMap, ...queueMap]);
 
-          /*await*/ saveRouteMap();
+          await saveRouteMap();
 
           logClient("log", clientId, "Route map updated successfully", {
             totalRoutes: routeMap.size,
