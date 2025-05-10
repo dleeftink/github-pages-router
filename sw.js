@@ -127,11 +127,11 @@ async function loadRouteMap(client) {
           logBase("warn", "No route map found in cache - using empty map");
           
           // We may still be constructring the map; retry just in case (e.g. when no cached routes on active ServiceWorker);
-          setTimeout(async ()=>{
+          /*setTimeout(async ()=>{
             if(routeMap.size === 0) {
              client.postMessage({type:"REQUEST_ROUTES"}) 
             }            
-          },500)        
+          },500)*/        
   
         }
       } catch (error) {
@@ -447,6 +447,7 @@ self.addEventListener("fetch", (event) => {
             path: route || "/",
             from:event.request.referrer
           });
+          
           return fetch(event.request).then(response => {
 
            // fetch request returned 404, serve custom 404 page
