@@ -107,9 +107,9 @@
       navigator.serviceWorker.ready.then((registration) => { 
         this.logger.appendLog("Route check"); 
         this.logger.appendLog("===========");
-        /*registration.active.postMessage({
+        registration.active.postMessage({
           type: "CHECK_MAP",
-        });*/
+        });
       });
 
       await this.mapReady;      
@@ -160,6 +160,8 @@
         }
         if (event.data.type === "NAVIGATE_TO") {
           console.log("Responding to NAVIGATE_TO event from service worker using payload:", event.data);
+          this.logger.appendLog("Responding to NAVIGATE_TO event from service worker using payload:",JSON.stringify(event.data)); 
+          this.logger.appendLog("===========");
           this.navigateTo(event.data.href);
         }
         if (event.data.type === "MAP_READY") {
@@ -294,7 +296,7 @@
             );
             this.logger.appendLog(
               "Navigated by app from:" +
-              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : '') +
+              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : '') + ' ' +
               "to:" +
               "/"+href.replace(new URL(document.baseURI).pathname, "")
             );
