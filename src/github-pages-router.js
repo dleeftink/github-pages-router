@@ -20,7 +20,7 @@
     routes = new Map(); queue = [];
 
     _navigationChain = Promise.resolve(); // Queue of pending navigations
-    defaultDelay = 0; // ms configurable
+    defaultDelay = 0; // ms — configurable
     
     allRoutesRegistered = new Promise((resolve) => {
       this.resolveRoutes = resolve; // Resolve when all routes are registered
@@ -129,8 +129,7 @@
     setupRoutes({ redo = false,routes } = {}) {
       console.log("Setting up routes");
       navigator.serviceWorker.ready.then((registration) => {
-        
-        f(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
+        if(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
         routes.forEach(({ href, path }) => {
