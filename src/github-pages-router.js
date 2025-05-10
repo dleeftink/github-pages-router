@@ -42,6 +42,9 @@
 
       await this.registerServiceWorker();
       await this.servePage();
+      this.logger.appendLog("===========");
+      
+
       
       // const basePath = new URL(this.basePath).pathname;  
       // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
@@ -547,13 +550,14 @@
         width: 90%;
         max-width: 800px;
         max-height: 80vh;
-        overflow: auto; /* Enables both vertical and horizontal scrolling */
+        overflow: auto; 
         padding: 15px;
         box-sizing: border-box;
         font-family: monospace;
+        font-size: 0.8rem;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         color: #333;
-        white-space: nowrap; /* Prevent line breaks inside the container */
+        white-space: nowrap;
       `;
     }
   
