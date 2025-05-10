@@ -129,7 +129,7 @@
     setupRoutes({ redo = false,routes } = {}) {
       console.log("Setting up routes");
       navigator.serviceWorker.ready.then((registration) => {
-        if(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
+        // if(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
         routes.forEach(({ href, path }) => {
