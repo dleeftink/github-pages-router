@@ -45,8 +45,6 @@
       await this.registerServiceWorker();
       await this.servePage();
       
-     
-      
       // const basePath = new URL(this.basePath).pathname;  
       // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
 
@@ -160,9 +158,7 @@
         }
         if (event.data.type === "NAVIGATE_TO") {
           console.log("Responding to NAVIGATE_TO event from service worker using payload:", event.data);
-          this.logger.appendLog("Responding to NAVIGATE_TO event from service worker using payload:",JSON.stringify(event.data)); 
-          this.logger.appendLog("===========");
-          this.navigateTo(event.data.href);
+          // this.navigateTo(event.data.href);
         }
         if (event.data.type === "MAP_READY") {
           if(this.routes.size === 0)  console.log("Service worker initialised successfully");
