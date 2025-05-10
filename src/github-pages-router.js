@@ -107,9 +107,11 @@
       // Trigger view transition if the current location matches the route
       if (document.referrer && document.referrer.startsWith(this.basePath) && atBasepath) {
         console.log("Routed from referrer",document.referrer);
+        this.logger.appendLog("Routed from referrer",document.referrer);
         this.navigateTo(new URL(document.referrer).pathname);
       } else {
         console.log("Routed to location",location.pathname);
+        this.logger.appendLog("Routed to location",location.pathname);
         this.navigateTo(location.pathname);
       }
     }
@@ -271,13 +273,20 @@
         // Execute the real navigation
         this.navigate({
           target: { href },
-          preventDefault: () =>
+          preventDefault: () => {
             console.log(
               "Navigated by app from:",
               "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
               "to:",
               "/"+href.replace(new URL(document.baseURI).pathname, ""),
-            ),
+            );
+            this.logger.appendLog(
+              "Navigated by app from:",
+              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
+              "to:",
+              "/"+href.replace(new URL(document.baseURI).pathname, "")
+            );
+          }
         });
         
         // this.appendHistory(href);

@@ -106,7 +106,7 @@
         padding: 15px;
         box-sizing: border-box;
         font-family: monospace;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         color: #333;
         white-space: nowrap;
@@ -138,6 +138,7 @@
      * @param {string} message - The log message to append
      */
     appendLog(message) {
+      
       const timestamp = new Date().toISOString();
       const fullMessage = `${timestamp} - ${message}`;
       this.logs.push(fullMessage);
