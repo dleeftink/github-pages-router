@@ -331,7 +331,7 @@ self.addEventListener("fetch", (event) => {
   
   // API routes
   
-  routeMapReady.then(() => { 
+  event.waitUntil(routeMapReady.then(() => { 
   
   if (route.toLowerCase().startsWith("/api") && url.href.startsWith(rootUrl)) {
     const subroute = route.toLowerCase().replace("/api", "");
@@ -562,7 +562,8 @@ self.addEventListener("fetch", (event) => {
     );
   }
   
-  })
+  }))
+  
 });
 
 function shouldCacheAsset(request) {
