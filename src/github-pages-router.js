@@ -107,9 +107,9 @@
       navigator.serviceWorker.ready.then((registration) => { 
         this.logger.appendLog("Route check"); 
         this.logger.appendLog("===========");
-        registration.active.postMessage({
+        /*registration.active.postMessage({
           type: "CHECK_MAP",
-        });
+        });*/
       });
 
       await this.mapReady;      
@@ -293,9 +293,9 @@
               "/"+href.replace(new URL(document.baseURI).pathname, ""),
             );
             this.logger.appendLog(
-              "Navigated by app from:",
-              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
-              "to:",
+              "Navigated by app from:" +
+              "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : '') +
+              "to:" +
               "/"+href.replace(new URL(document.baseURI).pathname, "")
             );
           }
