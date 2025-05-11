@@ -314,6 +314,14 @@ let last; // store last globally => not for individual client use
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
    
+  const process = () => {
+      
+  /*if(routeMap.size === 0) {
+    // const response = await caches.match(ROUTE_MAP_KEY);
+    // routeMap = new Map(await response.json()); 
+    console.log("EMPTY ROUTEMAP")
+  }*/
+
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
   const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
@@ -351,8 +359,8 @@ self.addEventListener("fetch", (event) => {
 
     switch (routePath) {
       case "/hello":
-        event.respondWith(
-          new Response(
+        //event.respondWith(
+          return new Response(
             JSON.stringify({
               message: "Hello, world!",
               timestamp: new Date().toISOString(),
@@ -362,13 +370,14 @@ self.addEventListener("fetch", (event) => {
               headers: { "Content-Type": "application/json" },
               status: 200,
             },
-          ),
-        );
+          )//,
+        //)
+        ;
         break;
 
       case "/clients":
-        event.respondWith(
-          clients
+        //event.respondWith(
+          return clients
             .matchAll()
             .then((clientList) => {
               const formattedClients = clientList.map((client) => ({
@@ -393,8 +402,9 @@ self.addEventListener("fetch", (event) => {
                 headers: { "Content-Type": "application/json" },
                 status: 500,
               });
-            }),
-        );
+            })//,
+        //)
+        ;
         break;
 
       default:
@@ -402,12 +412,12 @@ self.addEventListener("fetch", (event) => {
           path: routePath,
         });
 
-        event.respondWith(
+        //event.respondWith(
           new Response(null, {
             status: 204,
             statusText: "Non-existing API",
-          }),
-        );
+          })//,
+        //);
     }
   }
   
@@ -428,8 +438,8 @@ self.addEventListener("fetch", (event) => {
     });
 
     
-    event.respondWith(
-      self.clients.get(clientId).then(async (client) => {
+    //event.respondWith(
+      return self.clients.get(clientId).then(async (client) => {
         const usedClientId = client?.id ?? event.resultingClientId;
 
         if (!client) {
@@ -481,8 +491,8 @@ self.addEventListener("fetch", (event) => {
           status: 204,
           statusText: "Navigation prevented",
         });
-      }),
-    );
+      })//,
+    //);
     
   }
   
@@ -496,8 +506,8 @@ self.addEventListener("fetch", (event) => {
       path: contentPath.replace(basePath, ""),
     });
 
-    event.respondWith(
-      caches.match(contentPath).then((cachedResponse) => {
+    // event.respondWith(
+      return caches.match(contentPath).then((cachedResponse) => {
         if (cachedResponse) {
           logClient("log", clientId, "Serving from route cache", {
             path: contentPath.replace(basePath, ""),
@@ -510,8 +520,8 @@ self.addEventListener("fetch", (event) => {
         });
 
         return fetch(contentPath);
-      }).then((response)=>{ console.groupEnd(); return response}),
-    );
+      }).then((response)=>{ console.groupEnd(); return response})//,
+    //);
   }
   // General asset caching
   else {
@@ -520,8 +530,8 @@ self.addEventListener("fetch", (event) => {
       path: url.pathname,
     });
 
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
+    //event.respondWith(
+     return caches.match(event.request).then((cachedResponse) => {
         logClient("groupCollapsed",clientId,"Asset request: " + route, {routeMap:[...routeMap.entries()]});
         if (cachedResponse) {
           logClient("log", clientId, "Asset cache hit", {
@@ -549,10 +559,12 @@ self.addEventListener("fetch", (event) => {
           return response
 
         })
-      }).then((response)=>{ console.groupEnd(); return response}),
-    );
+      }).then((response)=>{ console.groupEnd(); return response})//,
+    //);
+  }
   }
   
+  event.respondWith(process());
 });
 
 function shouldCacheAsset(request) {
