@@ -314,13 +314,13 @@ let last; // store last globally => not for individual client use
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
    
-  const process = () => {
+  const process = async () => {
       
-  /*if(routeMap.size === 0) {
-    // const response = await caches.match(ROUTE_MAP_KEY);
-    // routeMap = new Map(await response.json()); 
-    console.log("EMPTY ROUTEMAP")
-  }*/
+  if(routeMap.size === 0) {
+    const response = await caches.match(ROUTE_MAP_KEY);
+    routeMap = new Map(await response.json()); 
+    //console.log("EMPTY ROUTEMAP")
+  }
 
   const url = new URL(event.request.url);
   const route = url.pathname.replace(basePath.slice(0,-1), "");
