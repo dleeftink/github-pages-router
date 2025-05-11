@@ -52,8 +52,9 @@
 
     async registerServiceWorker() {
 
-       this.logger.appendLog("Registering"); 
-       this.logger.appendLog("===========");
+      this.logger.appendLog("Registering"); 
+      this.logger.appendLog("===========");
+      
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange",(event) => {
 
@@ -161,7 +162,7 @@
           this.navigateTo(event.data.href);
         }
         if (event.data.type === "MAP_READY") {
-          if(this.routes.size === 0)  console.log("Service worker initialised successfully");
+          if(this.routes.size === 0 && event.data.routeMap.length > 0)  console.log("Service worker initialised successfully");
           this.routes = event.data.routeMap;
           this.resolveMapReady();
         }
@@ -219,12 +220,12 @@
           
           // Add routes after initial discovery
           if(this.routes.size > 0) { 
-            this.mapReady = new Promise((resolve) => {
-              this.resolveMapReady = resolve;
-            });
-            this.setupRoutes({routes:this.queue})
+            //this.mapReady = new Promise((resolve) => {
+              //this.resolveMapReady = resolve;
+            //});
+            //this.setupRoutes({routes:this.queue})
           }
-          await this.mapReady;
+          //await this.mapReady;
           this.queue.length = 0;
 
         });

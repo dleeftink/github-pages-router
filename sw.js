@@ -2,6 +2,10 @@ const CACHE_NAME = "github-pages-cache-v1";
 const ROUTE_MAP_KEY = "route-map-v1";
 const DEBUG = true; // Explicitly enabled for development
 
+let resolveRoutes, workerRoutesReady = new Promise((keep,drop)=>{
+  resolveRoutes = keep;
+});
+
 // Define the assets to cache
 const assets = [
   getRootUrl(),
@@ -99,8 +103,8 @@ self.addEventListener("activate", (event) => {
           }
         }),
       );
-    }),
-    //.then(() => loadRouteMap()), // => legacy, but test to make sure
+    })
+    // .then(() => loadRouteMap()), // => legacy, but test to make sure
   );
 
   event.waitUntil(self.clients.claim());
@@ -119,10 +123,11 @@ async function loadRouteMap(client) {
   loadRoutePromise = new Promise(async (resolve, reject) => {
     try {
       logBase("debug", "Loading route map from cache...");
-
+      
       const cache = await caches.open(CACHE_NAME);
       const response = await cache.match(ROUTE_MAP_KEY);
 
+      
       if (response) {
         const data = await response.json();
         routeMap = new Map(data);
@@ -133,49 +138,6 @@ async function loadRouteMap(client) {
 
         resolve(routeMap); // Resolve the promise with the loaded route map
       } else {
-        logBase("warn", "No route map found in cache - [T.B.D. requesting from client]");
-
-        // Request routes from the client with a timeout and retry mechanism
-        const requestRoutes = async () => {
-          return new Promise((resolveRequest, rejectRequest) => {
-            let retries = 0;
-            const maxRetries = 3;
-
-            const attemptRequest = () => {
-              retries++;
-              logBase("debug", `Requesting routes from client (attempt ${retries})`);
-
-              const timeout = setTimeout(() => {
-                logBase("warn", "Client did not respond in time");
-                if (retries < maxRetries) {
-                  attemptRequest(); // Retry the request
-                } else {
-                  rejectRequest(new Error("Failed to load route map after multiple retries"));
-                }
-              }, 2000); // 2-second timeout
-
-              const handleMessage = (event) => {
-                if (event.data?.type === "STORE_MAP") {
-                  clearTimeout(timeout);
-                  self.removeEventListener("message", handleMessage);
-
-                  logBase("log", "Route map received from client");
-                  resolveRequest();
-                }
-              };
-
-              self.addEventListener("message", handleMessage);
-
-              // Send the REQUEST_ROUTES message to the client
-              if (client) {
-                client.postMessage({ type: "REQUEST_ROUTES" });
-              }
-            };
-
-            attemptRequest();
-          });
-        };
-
         // await requestRoutes(); // Wait for the client to send the route map
         resolve(routeMap); // Resolve the promise after receiving the route map
       }
@@ -216,7 +178,10 @@ let storeTasks = 0;
 let loadChecks = 0;
 
 self.addEventListener("message", async (event) => {
-  const clientId = event.source.id;
+    
+  // console.log("Self received",event);
+  
+  const clientId = event.source?.id;
 
   if (event.data?.type === "ADD_ROUTE" || event.data?.type === "ADD_REQUESTED_ROUTE") {
     const { href, path } = event.data;
@@ -243,6 +208,7 @@ self.addEventListener("message", async (event) => {
       });
 
       queueMicrotask(async () => {
+        
         try {
           const cache = await caches.open(CACHE_NAME);
 
@@ -287,8 +253,10 @@ self.addEventListener("message", async (event) => {
           });
 
           routeMap = new Map([...routeMap, ...queueMap]);
-
-          await saveRouteMap();
+          // resolveRoutes(routeMap);
+          // self.dispatchEvent(new ExtendableMessageEvent(event.type,{data:{type:"CHECK_MAP"},source:event.source}));
+          // event.source.postMessage({ type: "MAP_READY", routeMap });
+          /* await */ saveRouteMap();
 
           logClient("log", clientId, "Route map updated successfully", {
             totalRoutes: routeMap.size,
@@ -296,10 +264,12 @@ self.addEventListener("message", async (event) => {
             routeMap,
           });
 
-          (await event.source).postMessage({ type: "MAP_READY", routeMap });
         } catch (error) {
           logClient("error", clientId, "Route map update failed:", error);
         } finally {
+          workerRoutesReady = new Promise((keep,drop)=>{
+            resolveRoutes = keep;
+          })
           queueMap.clear();
           storeTasks = 0;
         }
@@ -308,6 +278,7 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data?.type === "CHECK_MAP") {
+    
     loadChecks++;
 
     if (loadChecks === 1) {
@@ -317,28 +288,40 @@ self.addEventListener("message", async (event) => {
 
       queueMicrotask(async () => {
         try {
-          await loadRouteMap(await event.source);
-         (await event.source).postMessage({ type: "MAP_READY", routeMap });
+          // await loadRouteMap(await event.source);
+          if(routeMap.size === 0) {
+            await loadRouteMap();
+            
+            await workerRoutesReady; // Okay not ideal
+            if(routeMap.size === 0) {
+              await event.source.postMessage({ type: "REQUEST_ROUTES" });
+            }  
+          }
+          if(routeMap.size > 0) {
+            event.source.postMessage({ type: "MAP_READY", routeMap });
+            // resolveRoutes(routeMap);
+          } else {
+            event.source.postMessage({ type: "MAP_NOT_READY", routeMap }); 
+          }
+              
         } catch (error) {
           logClient("error", clientId, "Route map check failed:", error);
+          // resolveRoutes(error);
         } finally {
           loadChecks = 0;
         }
       });
     }
   }
+  
 });
 
 let last; // store last globally => not for individual client use
 
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
-  const process = async () => {
-    if (routeMap.size === 0) {
-      //const response = await caches.match(ROUTE_MAP_KEY);
-      //routeMap = new Map(await response.json());
-      await loadRouteMap();
-    }
+    
+  const process = async () => {   
 
     const url = new URL(event.request.url);
     const route = url.pathname.replace(basePath.slice(0, -1), "");
@@ -347,6 +330,17 @@ self.addEventListener("fetch", (event) => {
     const clientId = event.clientId;
     const rootUrl = getRootUrl();
     const contentPath = routeMap.get(url.pathname) || routeMap.get(scope + "*/" + name);
+    // const client = await clients.get(clientId);
+    
+    /*if (routeMap.size === 0) {
+      /*const response = await caches.match(ROUTE_MAP_KEY);
+      routeMap = new Map(await response.json());*/
+      /*await loadRouteMap();
+      if(routeMap.size === 0) {
+        client.postMessage({ type: "REQUEST_ROUTES" });
+      }
+      
+    }*/     
 
     // API routes
 
@@ -571,6 +565,46 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(process());
 });
+
+async function requestRoutes(client) {
+   return new Promise((resolveRequest, rejectRequest) => {
+     let retries = 0;
+     const maxRetries = 3;
+
+     const attemptRequest = () => {
+       retries++;
+       logBase("debug", `Requesting routes from client (attempt ${retries})`);
+
+       const timeout = setTimeout(() => {
+         logBase("warn", "Client did not respond in time");
+         if (retries < maxRetries) {
+           attemptRequest();
+         } else {
+           rejectRequest(new Error("Failed to load route map after multiple retries"));
+         }
+       }, 3000); // 2-second timeout
+
+       const handleMessage = (event) => {
+         if (event.data?.type === "STORE_MAP") {
+           clearTimeout(timeout);
+           self.removeEventListener("message", handleMessage);
+
+           logBase("log", "Route map received from client");
+           resolveRequest();
+         }
+       };
+
+       self.addEventListener("message", handleMessage);
+
+       // Send the REQUEST_ROUTES message to the client
+       if (client) {
+         client.postMessage({ type: "REQUEST_ROUTES" });
+       }
+     };
+
+     attemptRequest();
+   });
+ };
 
 function shouldCacheAsset(request) {
   const url = new URL(request.url);
