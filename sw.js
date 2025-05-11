@@ -29,29 +29,35 @@ function getClientPrefix(id = "") {
 
 function logBase(level, ...args) {
   if (!DEBUG) return;
-  const messages = args.filter(arg=>!(arg instanceof Object));
-  console[level]("[ServiceWorker]",  ...messages);
-  const payload = args.filter(arg=>(arg instanceof Object));
-  if(payload.length) {
+  const messages = args.filter((arg) => !(arg instanceof Object));
+  console[level]("[ServiceWorker]", ...messages);
+  const payload = args.filter((arg) => arg instanceof Object);
+  if (payload.length) {
     console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
   }
-  logToClients(args)
+  logToClients(args);
 }
 
 function logClient(level, id, ...args) {
   if (!DEBUG) return;
   const prefix = getClientPrefix(id);
-  const messages =  args.filter(arg=>!(arg instanceof Object));
-  console[level](`[ServiceWorker] ${prefix}`,...messages);
-  const payload = args.filter(arg=>(arg instanceof Object));
-  if(payload.length) {
+  const messages = args.filter((arg) => !(arg instanceof Object));
+  console[level](`[ServiceWorker] ${prefix}`, ...messages);
+  const payload = args.filter((arg) => arg instanceof Object);
+  if (payload.length) {
     console[level.startsWith("group") ? "log" : level](`[ServiceWorker]`, ...payload);
   }
-  logToClients(args,id)
+  logToClients(args, id);
 }
 
-function logToClients(args,id) {
-  clients.matchAll().then((clients)=> { if(!clients.length) return; clients[0].postMessage({type:"LOG_EVENT",args,client:id})}).catch((err)=>console.warn(err))
+function logToClients(args, id) {
+  clients
+    .matchAll()
+    .then((clients) => {
+      if (!clients.length) return;
+      clients[0].postMessage({ type: "LOG_EVENT", args, client: id });
+    })
+    .catch((err) => console.warn(err));
 }
 // === Lifecycle Events ===
 self.addEventListener("install", (event) => {
@@ -85,68 +91,103 @@ self.addEventListener("activate", (event) => {
   });
 
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              return caches.delete(cacheName).then(() => logBase("log", "Deleted old cache:", cacheName));
-            }
-          }),
-        );
-      })
-      //.then(() => loadRouteMap()),
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName).then(() => logBase("log", "Deleted old cache:", cacheName));
+          }
+        }),
+      );
+    }),
+    //.then(() => loadRouteMap()), // => legacy, but test to make sure
   );
 
   event.waitUntil(self.clients.claim());
 });
 
 // === Route Map Management ===
-let loadTasks = 0;
+let loadRoutePromise = null;
 
 async function loadRouteMap(client) {
-  loadTasks++
-  logBase("debug", "Loading route map from cache...");
+  // If a promise already exists, return it to avoid redundant loads
+  if (loadRoutePromise) {
+    return loadRoutePromise;
+  }
 
-  if(loadTasks === 1) {    
-    queueMicrotask(async () => {
-      try {
-        const cache = await caches.open(CACHE_NAME);
-        const response = await cache.match(ROUTE_MAP_KEY);
-      
-        if (response) {
-          const data = await response.json();
-          routeMap = new Map(data);
-          logBase("log", "Route map loaded successfully", {
-            entries: routeMap.size,
-            //sampleEntry: routeMap.entries().next().value
-            routeMap
-          });
-        } else {
-          logBase("warn", "No route map found in cache - using empty map");
-          
-          // We may still be constructring the map; retry just in case (e.g. when no cached routes on active ServiceWorker);
-          setTimeout(async ()=>{
-            if(routeMap.size === 0) {
-             client.postMessage({type:"REQUEST_ROUTES"}) 
-            }            
-          },500)
-  
-        }
-      } catch (error) {
-        logBase("error", "Failed to load route map:", error);
-      } finally {
-        if(client) client.postMessage({
-          type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
-          size: routeMap.size,
-          routeMap
+  // Create a new promise for loading the route map
+  loadRoutePromise = new Promise(async (resolve, reject) => {
+    try {
+      logBase("debug", "Loading route map from cache...");
+
+      const cache = await caches.open(CACHE_NAME);
+      const response = await cache.match(ROUTE_MAP_KEY);
+
+      if (response) {
+        const data = await response.json();
+        routeMap = new Map(data);
+        logBase("log", "Route map loaded successfully", {
+          entries: routeMap.size,
+          routeMap,
         });
 
-        loadTasks = 0;
+        resolve(routeMap); // Resolve the promise with the loaded route map
+      } else {
+        logBase("warn", "No route map found in cache - [T.B.D. requesting from client]");
+
+        // Request routes from the client with a timeout and retry mechanism
+        const requestRoutes = async () => {
+          return new Promise((resolveRequest, rejectRequest) => {
+            let retries = 0;
+            const maxRetries = 3;
+
+            const attemptRequest = () => {
+              retries++;
+              logBase("debug", `Requesting routes from client (attempt ${retries})`);
+
+              const timeout = setTimeout(() => {
+                logBase("warn", "Client did not respond in time");
+                if (retries < maxRetries) {
+                  attemptRequest(); // Retry the request
+                } else {
+                  rejectRequest(new Error("Failed to load route map after multiple retries"));
+                }
+              }, 2000); // 2-second timeout
+
+              const handleMessage = (event) => {
+                if (event.data?.type === "STORE_MAP") {
+                  clearTimeout(timeout);
+                  self.removeEventListener("message", handleMessage);
+
+                  logBase("log", "Route map received from client");
+                  resolveRequest();
+                }
+              };
+
+              self.addEventListener("message", handleMessage);
+
+              // Send the REQUEST_ROUTES message to the client
+              if (client) {
+                client.postMessage({ type: "REQUEST_ROUTES" });
+              }
+            };
+
+            attemptRequest();
+          });
+        };
+
+        // await requestRoutes(); // Wait for the client to send the route map
+        resolve(routeMap); // Resolve the promise after receiving the route map
       }
-    })
-  }
+    } catch (error) {
+      logBase("error", "Failed to load route map:", error);
+      reject(error); // Reject the promise if an error occurs
+    } finally {
+      loadRoutePromise = null; // Reset the promise so it can be recreated on subsequent calls
+    }
+  });
+
+  return loadRoutePromise;
 }
 
 async function saveRouteMap() {
@@ -164,7 +205,6 @@ async function saveRouteMap() {
       routes: routeMap.size,
       cacheName: CACHE_NAME,
     });
-    
   } catch (error) {
     logBase("error", "Failed to save route map:", error);
   }
@@ -179,7 +219,6 @@ self.addEventListener("message", async (event) => {
   const clientId = event.source.id;
 
   if (event.data?.type === "ADD_ROUTE" || event.data?.type === "ADD_REQUESTED_ROUTE") {
-
     const { href, path } = event.data;
 
     if (queueMap.has(href)) {
@@ -187,7 +226,7 @@ self.addEventListener("message", async (event) => {
       return;
     }
 
-    queueMap.set(href, path/*+'?t' + Date.now()*/);
+    queueMap.set(href, path /*+'?t' + Date.now()*/);
     logClient("log", clientId, event.data?.redo ? "Route queued (worker request)" : "Route queued (from app)", {
       path,
       queueSize: queueMap.size,
@@ -195,7 +234,7 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data?.type === "STORE_MAP") {
-    if(queueMap.size === 0) return;
+    if (queueMap.size === 0) return;
     storeTasks++;
 
     if (storeTasks === 1) {
@@ -206,45 +245,47 @@ self.addEventListener("message", async (event) => {
       queueMicrotask(async () => {
         try {
           const cache = await caches.open(CACHE_NAME);
-          
+
+          // Old caching mechanism
           // const uniquePaths = [...new Set(queueMap.values())];
           /* await*/ //cache.addAll(uniquePaths); // => add asynchronously
-          
+
           // Fetch and notify client of cached routes asynchronously;
           const uniquePaths = new Set();
-          const promises = queueMap.entries()
-           .filter(([_,path])=>uniquePaths.has(path)? false : (uniquePaths.add(path),true))
-           .map(([href,path]) => {
-            return fetch(path)
-              .then(response => {
-                if (!response.ok) {
-                  let error = new Error(`HTTP error! Status: ${response.status} for ${path}`);
-                  error.response = response;
-                  throw error
-                }
-                //const clone = response.clone();
-                return cache.put(path, response).then(() => {
-                  logClient("log", clientId,`Successfully cached: ${path}`); 
-                  event.source.postMessage({type:"CONTENT_READY",href,path})
-                  return response;
+          const promises = queueMap
+            .entries()
+            .filter(([_, path]) => (uniquePaths.has(path) ? false : (uniquePaths.add(path), true)))
+            .map(([href, path]) => {
+              return fetch(path)
+                .then((response) => {
+                  if (!response.ok) {
+                    let error = new Error(`HTTP error! Status: ${response.status} for ${path}`);
+                    error.response = response;
+                    throw error;
+                  }
+                  //const clone = response.clone();
+                  return cache.put(path, response).then(() => {
+                    logClient("log", clientId, `Successfully cached: ${path}`);
+                    event.source.postMessage({ type: "CONTENT_READY", href, path });
+                    return response;
+                  });
+                })
+                .catch((error) => {
+                  logClient("warn", clientId, `Failed to fetch or cache: ${path}:`, error);
+                  return error;
                 });
-              })
-              .catch(error => {
-                logClient("warn", clientId, `Failed to fetch or cache: ${path}:`, error); 
-                return error
-              });
-          });
-          
+            });
+
           Promise.all(promises).then((responses) => {
-            let cached = responses.filter(response=>!(response instanceof Error));
-            let failed = responses.filter(response=>(response instanceof Error)).map(d=>d.response);
-            if(failed.length) {
-              logClient("log", clientId, "Queued routes cached asynchronously with exceptions:",{cached,failed})
+            let cached = responses.filter((response) => !(response instanceof Error));
+            let failed = responses.filter((response) => response instanceof Error).map((d) => d.response);
+            if (failed.length) {
+              logClient("log", clientId, "Queued routes cached asynchronously with exceptions:", { cached, failed });
             } else {
-              logClient("log", clientId, "Queued routes cached asynchronously:",{cached})
+              logClient("log", clientId, "Queued routes cached asynchronously:", { cached });
             }
           });
-          
+
           routeMap = new Map([...routeMap, ...queueMap]);
 
           await saveRouteMap();
@@ -252,7 +293,7 @@ self.addEventListener("message", async (event) => {
           logClient("log", clientId, "Route map updated successfully", {
             totalRoutes: routeMap.size,
             newRoutes: queueMap.size,
-            routeMap
+            routeMap,
           });
 
           (await event.source).postMessage({ type: "MAP_READY", routeMap });
@@ -267,44 +308,23 @@ self.addEventListener("message", async (event) => {
   }
 
   if (event.data?.type === "CHECK_MAP") {
-    // console.log("ROUTES TASKS",loadTasks,storeTasks);
-    loadChecks++
-    
-    if(loadChecks===1) {
+    loadChecks++;
+
+    if (loadChecks === 1) {
       logClient("debug", clientId, "Route map check requested", {
         routeMapSize: routeMap.size,
       });
-      
-      queueMicrotask(async()=>{
-        try { 
-          //if(routeMap.size === 0) { 
-            await loadRouteMap(await event.source);
-            /*if(routeMap.size > 0) {
-              logClient("log", clientId, "Route map check successfully reloaded", {
-                routeMap
-              });
-            } /*else {
-              // Retry after timeout
-              setTimeout(()=>{
-                if(routeMap.size===0) { 
-                  event.source.postMessage({type:"REQUEST_ROUTES"}) 
-                  logClient("log", clientId, "No routes in cache, requesting")
-                }
-              },500)
-             
-            }*/
-          //}
-        
-          /*event.source.postMessage({
-            type: routeMap.size > 0 ? "MAP_READY" : "MAP_NOT_READY",
-            size: routeMap.size,
-          });*/
+
+      queueMicrotask(async () => {
+        try {
+          await loadRouteMap(await event.source);
+         (await event.source).postMessage({ type: "MAP_READY", routeMap });
         } catch (error) {
-          logClient("error", clientId, "Route map check failed:", error); 
+          logClient("error", clientId, "Route map check failed:", error);
         } finally {
           loadChecks = 0;
         }
-      })
+      });
     }
   }
 });
@@ -313,70 +333,62 @@ let last; // store last globally => not for individual client use
 
 // === Fetch Handling ===
 self.addEventListener("fetch", (event) => {
-   
   const process = async () => {
-      
-  if(routeMap.size === 0) {
-    const response = await caches.match(ROUTE_MAP_KEY);
-    routeMap = new Map(await response.json()); 
-    //console.log("EMPTY ROUTEMAP")
-  }
+    if (routeMap.size === 0) {
+      //const response = await caches.match(ROUTE_MAP_KEY);
+      //routeMap = new Map(await response.json());
+      await loadRouteMap();
+    }
 
-  const url = new URL(event.request.url);
-  const route = url.pathname.replace(basePath.slice(0,-1), "");
-  const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
-  const name = route.split('/').at(-1);
-  const clientId = event.clientId;
-  const rootUrl = getRootUrl();  
-  const contentPath = (routeMap.get(url.pathname) || routeMap.get(scope +'*/'+ name));
-  
-  // API routes
-  
-  if (route.toLowerCase().startsWith("/api") && url.href.startsWith(rootUrl)) {
-    const subroute = route.toLowerCase().replace("/api", "");
-    const routePath = subroute.split("?")[0];
-  // console.log("SOME TEST", new URL(event.request.referrer).pathname);
+    const url = new URL(event.request.url);
+    const route = url.pathname.replace(basePath.slice(0, -1), "");
+    const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
+    const name = route.split("/").at(-1);
+    const clientId = event.clientId;
+    const rootUrl = getRootUrl();
+    const contentPath = routeMap.get(url.pathname) || routeMap.get(scope + "*/" + name);
 
-    logClient("debug", clientId, "API request received", {
-      path: routePath,
-    });
-    
-    const debugInfo = {
-       type: "TEST_EVENT",
-       url: event.request.url,
-       method: event.request.method,
-       mode: event.request.mode,
-       referrer: event.request.referrer,
-       destination: event.request.destination,
-       credentials: event.request.credentials,
-       redirect: event.request.redirect,
-       integrity: event.request.integrity,
-       isReload: event.isReload,
-       headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
-       // routeMap: JSON.stringify([...routeMap.entries()]),
-       last
-    };
+    // API routes
 
-    switch (routePath) {
-      case "/hello":
-        //event.respondWith(
+    if (route.toLowerCase().startsWith("/api") && url.href.startsWith(rootUrl)) {
+      const subroute = route.toLowerCase().replace("/api", "");
+      const routePath = subroute.split("?")[0];
+
+      logClient("debug", clientId, "API request received", {
+        path: routePath,
+      });
+
+      const debugInfo = {
+        type: "TEST_EVENT",
+        url: event.request.url,
+        method: event.request.method,
+        mode: event.request.mode,
+        referrer: event.request.referrer,
+        destination: event.request.destination,
+        credentials: event.request.credentials,
+        redirect: event.request.redirect,
+        integrity: event.request.integrity,
+        isReload: event.isReload,
+        headers: Object.fromEntries(event.request.headers.entries()), // Convert headers to a plain object
+        // routeMap: JSON.stringify([...routeMap.entries()]),
+        last,
+      };
+
+      switch (routePath) {
+        case "/hello":
           return new Response(
             JSON.stringify({
               message: "Hello, world!",
               timestamp: new Date().toISOString(),
-              debugInfo//referrer: 'oi',//new URL(event.request.referrer).pathname
+              debugInfo, //referrer: 'oi',//new URL(event.request.referrer).pathname
             }),
             {
               headers: { "Content-Type": "application/json" },
               status: 200,
             },
-          )//,
-        //)
-        ;
-        break;
+          );
 
-      case "/clients":
-        //event.respondWith(
+        case "/clients":
           return clients
             .matchAll()
             .then((clientList) => {
@@ -402,43 +414,34 @@ self.addEventListener("fetch", (event) => {
                 headers: { "Content-Type": "application/json" },
                 status: 500,
               });
-            })//,
-        //)
-        ;
-        break;
+            });
 
-      default:
-        logClient("warn", clientId, "Unknown API route", {
-          path: routePath,
-        });
+        default:
+          logClient("warn", clientId, "Unknown API route", {
+            path: routePath,
+          });
 
-        //event.respondWith(
           new Response(null, {
             status: 204,
             statusText: "Non-existing API",
-          })//,
-        //);
+          });
+      }
     }
-  }
-  
-  // Ignore out of scope requests
-  // else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return } 
-  
-  // Navigation requests
-  else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {   
-    
-    last = url;
-   
-    logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
-      path: route || "/",
-      from:event.request.referrer,
-      href:url.href,
-      name,
-      scope,
-    });
 
-    
-    //event.respondWith(
+    // Ignore out of scope requests
+    // else if (event.request.referrer && event.request.referrer.startsWith(rootUrl) === false) { return }
+
+    // Navigation requests
+    else if (event.request.mode === "navigate" || (event.request.destination === "document" && routeMap.size > 0)) {
+      last = url;
+
+      logClient("warn", clientId || event.resultingClientId, "Navigation intercepted", {
+        path: route || "/",
+        from: event.request.referrer,
+        href: url.href,
+        name,
+        scope,
+      });
       return self.clients.get(clientId).then(async (client) => {
         const usedClientId = client?.id ?? event.resultingClientId;
 
@@ -448,32 +451,30 @@ self.addEventListener("fetch", (event) => {
           logClient("warn", usedClientId, "Fresh client detected - serving root");
           return caches.match(getRootUrl());
         }
-        
+
         const clientUrl = new URL(client.url);
-        const clientRoute =  clientUrl.pathname.replace(basePath.slice(0,-1), "");
-        
+        const clientRoute = clientUrl.pathname.replace(basePath.slice(0, -1), "");
+
         // Normal fetch when out of scope
-        if(client.url.startsWith(rootUrl) === false  || clientRoute.toLowerCase().startsWith('/api')) {
+        if (client.url.startsWith(rootUrl) === false || clientRoute.toLowerCase().startsWith("/api")) {
           logClient("warn", clientId || event.resultingClientId, "Navigation passed through", {
             path: route || "/",
-            from:event.request.referrer
+            from: event.request.referrer,
           });
-          
-          return fetch(event.request).then(response => {
 
-           // fetch request returned 404, serve custom 404 page
-           if (response.status === 404) {
-             return fetch(getRootUrl());  // => needs postNavigation route as well?
-           }
-           
-           return response
-           
-         });
+          return fetch(event.request).then((response) => {
+            // fetch request returned 404, serve custom 404 page
+            if (response.status === 404) {
+              return fetch(getRootUrl()); // => T.B.D. needs postNavigation route as well or not?
+            }
+
+            return response;
+          });
         }
-        
+
         if (contentPath) {
           logClient("warn", usedClientId, "Navigating to registered route", {
-            path:contentPath.replace(basePath.slice(0,-1), "")
+            path: contentPath.replace(basePath.slice(0, -1), ""),
           });
 
           client.postMessage({
@@ -491,79 +492,83 @@ self.addEventListener("fetch", (event) => {
           status: 204,
           statusText: "Navigation prevented",
         });
-      })//,
-    //);
-    
-  }
-  
-  // Route map matches
-  else if (contentPath) {
-    last = url;
-   
-    logClient("groupCollapsed",clientId,"Route request: " + route);
-    logClient("log", clientId, "Route map match found", {
-      href:route,
-      path: contentPath.replace(basePath, ""),
-    });
+      });
+      
+    }
 
-    // event.respondWith(
-      return caches.match(contentPath).then((cachedResponse) => {
-        if (cachedResponse) {
-          logClient("log", clientId, "Serving from route cache", {
+    // Route map matches
+    else if (contentPath) {
+      last = url;
+
+      logClient("groupCollapsed", clientId, "Route request: " + route);
+      logClient("log", clientId, "Route map match found", {
+        href: route,
+        path: contentPath.replace(basePath, ""),
+      });
+
+      return caches
+        .match(contentPath)
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            logClient("log", clientId, "Serving from route cache", {
+              path: contentPath.replace(basePath, ""),
+            });
+            return cachedResponse;
+          }
+
+          logClient("log", clientId, "Fetching from network", {
             path: contentPath.replace(basePath, ""),
           });
-          return cachedResponse;
-        }
 
-        logClient("log", clientId, "Fetching from network", {
-          path: contentPath.replace(basePath, ""),
+          return fetch(contentPath);
+        })
+        .then((response) => {
+          console.groupEnd();
+          return response;
         });
+    }
+    // General asset caching
+    else {
+      logClient("debug", clientId, "Asset request", {
+        path: url.pathname,
+      });
 
-        return fetch(contentPath);
-      }).then((response)=>{ console.groupEnd(); return response})//,
-    //);
-  }
-  // General asset caching
-  else {
-    
-    logClient("debug", clientId, "Asset request", {
-      path: url.pathname,
-    });
+      return caches
+        .match(event.request)
+        .then((cachedResponse) => {
+          logClient("groupCollapsed", clientId, "Asset request: " + route, { routeMap: [...routeMap.entries()] });
+          if (cachedResponse) {
+            logClient("log", clientId, "Asset cache hit", {
+              path: url.pathname,
+            });
+            return cachedResponse;
+          }
 
-    //event.respondWith(
-     return caches.match(event.request).then((cachedResponse) => {
-        logClient("groupCollapsed",clientId,"Asset request: " + route, {routeMap:[...routeMap.entries()]});
-        if (cachedResponse) {
-          logClient("log", clientId, "Asset cache hit", {
+          logClient("log", clientId, "Asset fetched from source", {
             path: url.pathname,
           });
-          return cachedResponse;
-        }
 
-        logClient("log", clientId, "Asset fetched from source", {
-          path: url.pathname,
-        });
+          return fetch(event.request).then(async (response) => {
+            // If the request is cacheable, store it
+            if (response.ok && shouldCacheAsset(event.request)) {
+              const cache = await caches.open(CACHE_NAME);
+              cache.put(event.request, response.clone());
+            }
 
-        return fetch(event.request).then(async (response)=>{
-            
-          // If the request is cacheable, store it
-          if (response.ok && shouldCacheAsset(event.request)) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(event.request, response.clone());
-          }
-          
-          /*if(!response.ok) {
+            /*if(!response.ok) {
             return caches.match(routeMap.get(basePath))
           };*/
 
-          return response
-
+            return response;
+          });
         })
-      }).then((response)=>{ console.groupEnd(); return response})//,
-    //);
-  }
-  }
-  
+        .then((response) => {
+          console.groupEnd();
+          return response;
+        });
+    }
+  };
+
   event.respondWith(process());
 });
 
@@ -572,7 +577,6 @@ function shouldCacheAsset(request) {
   const ext = url.pathname.split(".").pop().toLowerCase();
   return ["jpg", "jpeg", "png", "gif", "webp", "woff", "woff2", "ttf", "eot"].includes(ext);
 }
-
 
 /*
 event.waitUntil(
