@@ -84,7 +84,7 @@ self.addEventListener("activate", (event) => {
     routeMapSize: routeMap.size,
   });
 
-  /*event.waitUntil(
+  event.waitUntil(
     caches
       .keys()
       .then((cacheNames) => {
@@ -97,7 +97,7 @@ self.addEventListener("activate", (event) => {
         );
       })
       //.then(() => loadRouteMap()),
-  );*/
+  );
 
   event.waitUntil(self.clients.claim());
 });
