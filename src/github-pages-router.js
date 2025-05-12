@@ -46,10 +46,10 @@
       await this.servePage();
       const basePath = new URL(this.basePath).href;  
       setTimeout(() => { 
-        this.navigateTo(basePath + "server");
-        this.navigateTo(basePath + "setup");
-        this.navigateTo(basePath + "server")
-      console.log(this._navigationChain)
+        // this.navigateTo(basePath + "server");
+        // this.navigateTo(basePath + "setup");
+        // this.navigateTo(basePath + "server")
+        // console.log(this._navigationChain)
       }, 500);
 
     }
@@ -250,9 +250,9 @@
     navigate(event) {
       event.preventDefault();
       const { href } = event.target;
-      if (href === document.location.toString() && !event.initial) return;
+      if (href === document.location.toString() && !event?.detail?.initial) return;
       console.log(event);
-      this.appendHistory(href);
+      if(event?.detail?.history ?? true) this.appendHistory(href);
       this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
 
@@ -275,7 +275,7 @@
     }
     
     // Queue navigation
-    async navigateTo(href, { delay = this.defaultDelay, initial = false } = {}) {
+    async navigateTo(href, { delay = this.defaultDelay, initial = false, history, noNav} = {}) {
       // Wrap the navigation logic in a task
       const task = async () => {
         if (this.transition) {
@@ -303,7 +303,12 @@
               "/"+href.replace(new URL(document.baseURI).pathname, "")
             );*/
           },
-          initial // => trusted
+          detail: { 
+            initial, // => trusted
+            history,
+            noNav
+            
+          }
         });
         
         // this.appendHistory(href);
@@ -351,12 +356,14 @@
       } catch (error) {
         if(error.status.url.startsWith(this.basePath)) {
           console.warn("New visit from non-valid route")
-          /*if(this.transition) {
+          
+          if(this.transition) {
             this.transition.skipTransition();
-          }*/
-          console.log("Updating history");
+          }
+          // console.log("Updating history");
           history.replaceState({...history.state,invalid:true}, '', url.href);
-          this.navigateTo(new URL(this.basePath).href);          
+          
+          this.navigateTo(history.state.href,{history:false});          
         } else {
           console.error(error);   
         }
