@@ -174,7 +174,7 @@ async function saveRouteMap() {
 
 // === Message Handling ===
 let queueMap = new Map();
-let storeTasks = 0;
+let storeTasks = [];
 let loadChecks = 0;
 
 self.addEventListener("message", async (event) => {
@@ -197,14 +197,27 @@ self.addEventListener("message", async (event) => {
       queueSize: queueMap.size,
     });
   }
+  
+  if (event.data?.type === "ADD_ROUTES") {
+    const { routes } = event.data;
+
+    // queueMap = new Map(routes);
+    self.dispatchEvent(new ExtendableMessageEvent("message",{data:{type:"STORE_MAP", queue:routes},source:event.source}));
+    
+    logClient("log", clientId, event.data?.redo ? "Route queued (worker request)" : "Route queued (from app)", {
+      routes,
+      queueSize: routes.length
+    });
+  }
 
   if (event.data?.type === "STORE_MAP") {
-    if (queueMap.size === 0) return;
-    storeTasks++;
+   
+    if (event.data.queue.size === 0) return;
+    storeTasks.push(event.data.queue);
 
-    if (storeTasks === 1) {
+    if (storeTasks.length === 1) {
       logClient("log", clientId, "Starting route map update", {
-        routesQueued: queueMap.size,
+        routesQueued: storeTasks
       });
 
       queueMicrotask(async () => {
@@ -217,10 +230,10 @@ self.addEventListener("message", async (event) => {
           /* await*/ //cache.addAll(uniquePaths); // => add asynchronously
 
           // Fetch and notify client of cached routes asynchronously;
-          const uniquePaths = new Set();
-          const promises = queueMap
+          const uniquePaths = new Map(storeTasks.flat().map(({href,path})=>[href,path]));
+          
+          const promises = uniquePaths
             .entries()
-            .filter(([_, path]) => (uniquePaths.has(path) ? false : (uniquePaths.add(path), true)))
             .map(([href, path]) => {
               return fetch(path)
                 .then((response) => {
@@ -252,26 +265,27 @@ self.addEventListener("message", async (event) => {
             }
           });
 
-          routeMap = new Map([...routeMap, ...queueMap]);
-          // resolveRoutes(routeMap);
-          // self.dispatchEvent(new ExtendableMessageEvent(event.type,{data:{type:"CHECK_MAP"},source:event.source}));
+          routeMap = new Map([...routeMap, ...uniquePaths]);
+          // self.dispatchEvent(new ExtendableMessageEvent("message",{data:{type:"CHECK_MAP"},source:event.source}));
           // event.source.postMessage({ type: "MAP_READY", routeMap });
           /* await */ saveRouteMap();
 
           logClient("log", clientId, "Route map updated successfully", {
             totalRoutes: routeMap.size,
-            newRoutes: queueMap.size,
+            newRoutes: uniquePaths.size,
             routeMap,
           });
+          resolveRoutes(routeMap);
 
         } catch (error) {
           logClient("error", clientId, "Route map update failed:", error);
         } finally {
-          workerRoutesReady = new Promise((keep,drop)=>{
+          /*workerRoutesReady = new Promise((keep,drop)=>{
             resolveRoutes = keep;
-          })
-          queueMap.clear();
-          storeTasks = 0;
+          })*/
+          //queueMap.clear();
+          //storeTasks = 0;
+          storeTasks.length = 0;
         }
       });
     }
@@ -292,11 +306,12 @@ self.addEventListener("message", async (event) => {
           if(routeMap.size === 0) {
             await loadRouteMap();
             
-            await workerRoutesReady; // Okay not ideal
             if(routeMap.size === 0) {
               await event.source.postMessage({ type: "REQUEST_ROUTES" });
             }  
           }
+          //await workerRoutesReady; // Okay not ideal
+          
           if(routeMap.size > 0) {
             event.source.postMessage({ type: "MAP_READY", routeMap });
             // resolveRoutes(routeMap);
@@ -322,7 +337,7 @@ let last; // store last globally => not for individual client use
 self.addEventListener("fetch", (event) => {
     
   const process = async () => {   
-
+  
     const url = new URL(event.request.url);
     const route = url.pathname.replace(basePath.slice(0, -1), "");
     const scope = url.pathname.substring(0, url.pathname.indexOf("/", 1) + 1);
@@ -563,7 +578,7 @@ self.addEventListener("fetch", (event) => {
     }
   };
 
-  event.respondWith(process());
+  event.respondWith(workerRoutesReady.then(()=>process()));
 });
 
 async function requestRoutes(client) {

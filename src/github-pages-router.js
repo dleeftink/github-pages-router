@@ -42,7 +42,7 @@
       await customElements.whenDefined('log-display');
       this.logger = document.querySelector('log-display');
 
-      await this.registerServiceWorker();
+      // await this.registerServiceWorker();
       await this.servePage();
       
       // const basePath = new URL(this.basePath).pathname;  
@@ -58,8 +58,8 @@
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange",(event) => {
 
-          const routes = this.queue.length ? this.queue : this.querySelectorAll(":scope > ghp-route");
-          this.setupRoutes({routes});
+          // const routes = this.queue.length ? this.queue : Array.from(this.querySelectorAll(":scope > ghp-route"));
+          // this.setupRoutes({routes:Array.from(this.routes.entries())});
           
         });
         
@@ -103,28 +103,36 @@
       this.logger.appendLog("Page served"); 
       this.logger.appendLog("===========");
       
-      navigator.serviceWorker.ready.then((registration) => { 
-        this.logger.appendLog("Route check"); 
+      //navigator.serviceWorker.ready.then(async (registration) => { 
+       /*this.logger.appendLog("Route check"); 
         this.logger.appendLog("===========");
         registration.active.postMessage({
           type: "CHECK_MAP",
         });
-      });
+      /*});*/
 
-      await this.mapReady;      
+      //await this.mapReady;      
       console.groupEnd();
       const atBasepath = location.href === this.basePath;
 
       // Trigger view transition if the current location matches the route
-      if (document.referrer && document.referrer.startsWith(this.basePath) && atBasepath) {
+      /*if (document.referrer && document.referrer.startsWith(this.basePath) && atBasepath) {
         console.log("Routed from referrer",document.referrer);
         this.logger.appendLog("Routed from referrer",document.referrer);
-        this.navigateTo(new URL(document.referrer).pathname);
+        // this.navigateTo(document.referrer);
       } else {
         console.log("Routed to location",location.pathname);
         this.logger.appendLog("Routed to location",location.pathname);
-        this.navigateTo(location.pathname);
+        this.navigateTo(location.href);
+      }*/
+
+      
+      if (new URL('./', document.baseURI).toString() == location.toString()) {
+        //this.router.viewTransition(new URL(content, document.baseURI).toString())
+        //this.navigate(location.toString());
       }
+      
+      //})
     }
 
     setupRoutes({ redo = false,routes } = {}) {
@@ -133,18 +141,20 @@
         // if(routes.length === 0) routes = this.querySelectorAll(":scope > ghp-route"); // => children.matches
         console.log("Discovered", routes);
 
-        routes.forEach(({ href, path }) => {
-          console.log("Sending route",href)
-          registration.active.postMessage({
-            type: redo ? "ADD_REQUESTED_ROUTE" : "ADD_ROUTE",
+        /*routes = routes.map(({ href, path }) => ({
+          //console.log("Sending route",href)
+          // registration.active.postMessage({
+            // type: redo ? "ADD_REQUESTED_ROUTE" : "ADD_ROUTE",
             href: new URL(href, document.baseURI).pathname,
             path: new URL(this.basePath).pathname + path.slice(2), //new URL(content, document.baseURI).toString(),
-            redo
-          });
-        });
-        registration.active.postMessage({
+            //redo
+          //});
+        }));*/
+        /*registration.active.postMessage({
           type: "STORE_MAP",
-        });
+        });*/
+        registration.active.postMessage({type:"ADD_ROUTES",routes})
+        
         return registration;
       });
     }
@@ -163,7 +173,7 @@
         }
         if (event.data.type === "MAP_READY") {
           if(this.routes.size === 0 && event.data.routeMap.length > 0)  console.log("Service worker initialised successfully");
-          this.routes = event.data.routeMap;
+          // this.routes = event.data.routeMap;
           this.resolveMapReady();
         }
         if (event.data.type === "MAP_TRANSFER") {
@@ -210,26 +220,22 @@
       console.log("Client Listeners activated");
     }
 
-    async addRoute(route) {
+    async addRoute({href,path}) {
         
-      if(this.routes.has(new URL(route.href, document.baseURI).pathname)) return;
+      /*if(this.routes.has(new URL(route.href, document.baseURI).pathname)) return;
       
       this.queue.push(route);
       if (this.queue.length === 1) {
         queueMicrotask(async () => {
           
-          // Add routes after initial discovery
-          if(this.routes.size > 0) { 
-            //this.mapReady = new Promise((resolve) => {
-              //this.resolveMapReady = resolve;
-            //});
-            //this.setupRoutes({routes:this.queue})
-          }
-          //await this.mapReady;
+          this.queue.forEach(({href,path})=> this.routes.set(href,path))
           this.queue.length = 0;
 
         });
-      }
+      }*/
+      href = new URL(href.slice(2), this.basePath).pathname;
+      path = new URL(path.slice(2), this.basePath).pathname
+      this.routes.set(href,path)
     }
 
     handleEvent(event) {
@@ -285,7 +291,7 @@
         this.navigate({
           target: { href },
           preventDefault: () => {
-            console.log(
+            /*console.log(
               "Navigated by app from:",
               "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : ''),
               "to:",
@@ -296,7 +302,7 @@
               "/" +(location.pathname.replace(new URL(document.baseURI).pathname, "") || "new") + (history.state?.invalid ? ' [INVALID]' : '') + ' ' +
               "to:" +
               "/"+href.replace(new URL(document.baseURI).pathname, "")
-            );
+            );*/
           }
         });
         
@@ -324,11 +330,14 @@
       const { contentElement } = this;
       if (!contentElement) return;
 
-      await this.mapReady;
 
       // No fallback for GHPRoute as this is handled by the ServiceWorker
       try {
-        const response = await fetch(url);
+        url = new URL(url).pathname
+        console.log("I am getting",url,this.routes,(this.routes.get(url)));
+        
+          
+        const response = await fetch(this.routes.get(url));
         if (!response.ok) { 
           let error = new Error(`Failed to load content from ${url}`);
           error.status = response;
@@ -342,7 +351,7 @@
           document.title = contentElement.querySelector("h2")?.textContent ?? "";
         }
       } catch (error) {
-        if(error.status.url.startsWith(this.basePath)) {
+        /*if(error.status.url.startsWith(this.basePath)) {
           console.warn("New visit from non-valid route")
           if(this.transition) {
             this.transition.skipTransition();
@@ -352,7 +361,8 @@
           this.navigateTo(new URL(this.basePath).pathname);          
         } else {
           console.error(error);   
-        }
+        }*/
+        console.log(error);
       }
     }
 
