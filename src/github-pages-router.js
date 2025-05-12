@@ -44,9 +44,13 @@
 
       // await this.registerServiceWorker();
       await this.servePage();
-      
-      // const basePath = new URL(this.basePath).pathname;  
-      // setTimeout(() => (this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server"),this.navigateTo(basePath + "server")), 500);
+      const basePath = new URL(this.basePath).href;  
+      setTimeout(() => { 
+        this.navigateTo(basePath + "server");
+        this.navigateTo(basePath + "setup");
+        this.navigateTo(basePath + "server")
+      console.log(this._navigationChain)
+      }, 500);
 
     }
 
@@ -116,20 +120,14 @@
       const atBasepath = location.href === this.basePath;
 
       // Trigger view transition if the current location matches the route
-      /*if (document.referrer && document.referrer.startsWith(this.basePath) && atBasepath) {
+      if (document.referrer && document.referrer.startsWith(this.basePath) && atBasepath) {
         console.log("Routed from referrer",document.referrer);
         this.logger.appendLog("Routed from referrer",document.referrer);
-        // this.navigateTo(document.referrer);
+        this.navigateTo(document.referrer,{initial:true});
       } else {
         console.log("Routed to location",location.pathname);
         this.logger.appendLog("Routed to location",location.pathname);
-        this.navigateTo(location.href);
-      }*/
-
-      
-      if (new URL('./', document.baseURI).toString() == location.toString()) {
-        //this.router.viewTransition(new URL(content, document.baseURI).toString())
-        //this.navigate(location.toString());
+        this.navigateTo(location.toString(),{initial:true});
       }
       
       //})
@@ -234,7 +232,7 @@
         });
       }*/
       href = new URL(href.slice(2), this.basePath).pathname;
-      path = new URL(path.slice(2), this.basePath).pathname
+      path = new URL(path.slice(2), this.basePath).pathname;
       this.routes.set(href,path)
     }
 
@@ -252,7 +250,8 @@
     navigate(event) {
       event.preventDefault();
       const { href } = event.target;
-      if (href === document.location.toString()) return;
+      if (href === document.location.toString() && !event.initial) return;
+      console.log(event);
       this.appendHistory(href);
       this.viewTransition(href);
       this.updateNavLinks(); // Update aria-current attributes
@@ -276,7 +275,7 @@
     }
     
     // Queue navigation
-    async navigateTo(href, { delay = this.defaultDelay } = {}) {
+    async navigateTo(href, { delay = this.defaultDelay, initial = false } = {}) {
       // Wrap the navigation logic in a task
       const task = async () => {
         if (this.transition) {
@@ -303,7 +302,8 @@
               "to:" +
               "/"+href.replace(new URL(document.baseURI).pathname, "")
             );*/
-          }
+          },
+          initial // => trusted
         });
         
         // this.appendHistory(href);
@@ -333,10 +333,8 @@
 
       // No fallback for GHPRoute as this is handled by the ServiceWorker
       try {
-        url = new URL(url).pathname
-        console.log("I am getting",url,this.routes,(this.routes.get(url)));
+        url = new URL(url).pathname;
         
-          
         const response = await fetch(this.routes.get(url));
         if (!response.ok) { 
           let error = new Error(`Failed to load content from ${url}`);
@@ -351,17 +349,17 @@
           document.title = contentElement.querySelector("h2")?.textContent ?? "";
         }
       } catch (error) {
-        /*if(error.status.url.startsWith(this.basePath)) {
+        if(error.status.url.startsWith(this.basePath)) {
           console.warn("New visit from non-valid route")
-          if(this.transition) {
+          /*if(this.transition) {
             this.transition.skipTransition();
-          }
-          console.log("Mutating history");
+          }*/
+          console.log("Updating history");
           history.replaceState({...history.state,invalid:true}, '', url.href);
-          this.navigateTo(new URL(this.basePath).pathname);          
+          this.navigateTo(new URL(this.basePath).href);          
         } else {
           console.error(error);   
-        }*/
+        }
         console.log(error);
       }
     }
